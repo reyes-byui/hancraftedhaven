@@ -66,7 +66,7 @@ export default function Home() {
         <section className="max-w-4xl w-full flex flex-col items-center text-center gap-6">
           <h2 className="font-serif text-2xl md:text-3xl text-[#8d6748] font-bold">Join a Community of Makers & Supporters</h2>
           <p className="text-[#4d5c3a] text-lg max-w-2xl">
-            Handcrafted Haven is more than a marketplace—it's a movement for sustainable consumption, local artistry, and meaningful connections. Whether you're a creator or a conscious shopper, you'll find your place here.
+            Handcrafted Haven is more than a marketplace&mdash;it&apos;s a movement for sustainable consumption, local artistry, and meaningful connections. Whether you&apos;re a creator or a conscious shopper, you&apos;ll find your place here.
           </p>
         </section>
 
