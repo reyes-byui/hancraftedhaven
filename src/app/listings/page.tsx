@@ -1,3 +1,4 @@
+import Link from "next/link";
 import MainHeader from "../../components/MainHeader";
 import Image from "next/image";
 
@@ -11,6 +12,16 @@ export default function ListingsPage() {
         <p className="mb-2">Browse crafts by category, seller, price, and more.</p>
         {/* TODO: Implement listings gallery UI */}
       </main>
+      <footer className="w-full bg-[#e7d7c1] py-6 flex flex-col items-center text-[#8d6748] text-sm mt-auto">
+        <span>&copy; {new Date().getFullYear()} Handcrafted Haven. All rights reserved.</span>
+        <nav className="flex gap-4 mt-2">
+          <Link href="/" className="hover:underline focus:underline">Home</Link>
+          <Link href="/sellers" className="hover:underline focus:underline">Sellers</Link>
+          <Link href="/listings" className="hover:underline focus:underline">Listings</Link>
+          <Link href="/about" className="hover:underline focus:underline">About</Link>
+          <Link href="/contact" className="hover:underline focus:underline">Contact</Link>
+        </nav>
+      </footer>
     </div>
   );
 }
