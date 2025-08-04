@@ -41,6 +41,7 @@ export default function CustomerLoginPage() {
       <div className="flex flex-col items-center justify-center px-4 py-8">
         <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
           <h1 className="text-2xl font-serif text-[#8d6748] font-bold mb-6 text-center">Customer Sign In</h1>
+          <p className="text-sm text-gray-600 text-center mb-6">Access your customer account to browse and purchase handcrafted items.</p>
           
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
