@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { completeCustomerProfile, uploadProfilePhoto } from "@/lib/supabase";
+import { completeCustomerProfile, uploadProfilePhotoOnly, getCurrentUser } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function CustomerProfileSetup() {
@@ -14,6 +14,7 @@ export default function CustomerProfileSetup() {
   const [contactNumber, setContactNumber] = useState("");
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>("");
+  const [userEmail, setUserEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -23,6 +24,13 @@ export default function CustomerProfileSetup() {
   useEffect(() => {
     if (!userId) {
       router.push('/register');
+    } else {
+      // Get current user to fetch email
+      getCurrentUser().then(({ user }) => {
+        if (user?.email) {
+          setUserEmail(user.email);
+        }
+      });
     }
   }, [userId, router]);
 
@@ -55,10 +63,10 @@ export default function CustomerProfileSetup() {
     setLoading(true);
 
     try {
-      // Upload photo if provided
+      // Upload photo first if provided
       let photoUrl = "";
       if (profilePhoto) {
-        const { data: uploadData, error: uploadError } = await uploadProfilePhoto(userId, profilePhoto);
+        const { data: uploadData, error: uploadError } = await uploadProfilePhotoOnly(userId, profilePhoto);
         if (uploadError) {
           console.error("Photo upload failed:", uploadError);
         } else {
@@ -66,10 +74,11 @@ export default function CustomerProfileSetup() {
         }
       }
 
-      // Complete profile
+      // Complete profile with photo URL
       const { data, error } = await completeCustomerProfile(userId, {
         first_name: firstName,
         last_name: lastName,
+        email: userEmail,
         country,
         address,
         contact_number: contactNumber || undefined,
@@ -78,10 +87,11 @@ export default function CustomerProfileSetup() {
 
       if (error) {
         setError(error);
-      } else {
-        // Redirect to customer dashboard
-        router.push("/account/customer");
+        return;
       }
+
+      // Redirect to customer dashboard
+      router.push("/account/customer");
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred");
     } finally {

@@ -14,44 +14,44 @@ export type AuthError = {
 // Profile types
 export type CustomerProfile = {
   id: string
-  role: 'customer'
   first_name: string
   last_name: string
-  photo_url?: string
-  country?: string
-  address?: string
+  email: string
+  country: string
+  address: string
   contact_number?: string
-  username?: string
+  photo_url?: string
   profile_completed?: boolean
 }
 
 export type SellerProfile = {
   id: string
-  role: 'seller'
   first_name: string
   last_name: string
-  photo_url?: string
-  country?: string
-  address?: string
+  email: string
+  country: string
+  address: string
   contact_number?: string
-  username?: string
+  photo_url?: string
   business_name: string
-  business_address?: string
-  business_description?: string
+  business_address: string
+  business_description: string
   profile_completed?: boolean
 }
 
 // Complete profile data for forms
-export type CompleteCustomerProfile = Omit<CustomerProfile, 'id' | 'role' | 'profile_completed'> & {
+export type CompleteCustomerProfile = Omit<CustomerProfile, 'id' | 'profile_completed'> & {
   first_name: string
   last_name: string
+  email: string
   country: string
   address: string
 }
 
-export type CompleteSellerProfile = Omit<SellerProfile, 'id' | 'role' | 'profile_completed'> & {
+export type CompleteSellerProfile = Omit<SellerProfile, 'id' | 'profile_completed'> & {
   first_name: string
   last_name: string
+  email: string
   country: string
   address: string
   business_name: string
@@ -76,25 +76,7 @@ export async function signUpCustomer(email: string, password: string) {
       throw error
     }
 
-    // Create minimal profile record
-    if (data.user) {
-      try {
-        const { error: profileError } = await supabase
-          .from('profile')
-          .insert({
-            id: data.user.id,
-            role: 'customer',
-            profile_completed: false
-          })
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError)
-        }
-      } catch (profileErr) {
-        console.log('Profile table may not exist yet. User auth was successful.')
-      }
-    }
-
+    // Don't create profile here - let the profile setup page handle it
     return { data, error: null }
   } catch (error: any) {
     return { data: null, error: error.message }
@@ -118,25 +100,7 @@ export async function signUpSeller(email: string, password: string) {
       throw error
     }
 
-    // Create minimal profile record
-    if (data.user) {
-      try {
-        const { error: profileError } = await supabase
-          .from('profile')
-          .insert({
-            id: data.user.id,
-            role: 'seller',
-            profile_completed: false
-          })
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError)
-        }
-      } catch (profileErr) {
-        console.log('Profile table may not exist yet. User auth was successful.')
-      }
-    }
-
+    // Don't create profile here - let the profile setup page handle it
     return { data, error: null }
   } catch (error: any) {
     return { data: null, error: error.message }
@@ -146,21 +110,48 @@ export async function signUpSeller(email: string, password: string) {
 // Complete customer profile
 export async function completeCustomerProfile(userId: string, profileData: CompleteCustomerProfile) {
   try {
-    const { data, error } = await supabase
-      .from('profile')
-      .update({
-        ...profileData,
-        profile_completed: true
-      })
+    // Check if profile exists in customer_profiles table
+    const { data: existingProfile } = await supabase
+      .from('customer_profiles')
+      .select('id')
       .eq('id', userId)
-      .select()
-      .single()
+      .maybeSingle()
 
-    if (error) {
-      throw error
+    if (!existingProfile) {
+      // Profile doesn't exist, create it
+      const { data, error } = await supabase
+        .from('customer_profiles')
+        .insert({
+          id: userId,
+          ...profileData,
+          profile_completed: true
+        })
+        .select()
+        .single()
+
+      if (error) {
+        throw error
+      }
+
+      return { data, error: null }
+    } else {
+      // Profile exists, update it
+      const { data, error } = await supabase
+        .from('customer_profiles')
+        .update({
+          ...profileData,
+          profile_completed: true
+        })
+        .eq('id', userId)
+        .select()
+        .single()
+
+      if (error) {
+        throw error
+      }
+
+      return { data, error: null }
     }
-
-    return { data, error: null }
   } catch (error: any) {
     return { data: null, error: error.message }
   }
@@ -169,21 +160,48 @@ export async function completeCustomerProfile(userId: string, profileData: Compl
 // Complete seller profile
 export async function completeSellerProfile(userId: string, profileData: CompleteSellerProfile) {
   try {
-    const { data, error } = await supabase
-      .from('profile')
-      .update({
-        ...profileData,
-        profile_completed: true
-      })
+    // Check if profile exists in seller_profiles table
+    const { data: existingProfile } = await supabase
+      .from('seller_profiles')
+      .select('id')
       .eq('id', userId)
-      .select()
-      .single()
+      .maybeSingle()
 
-    if (error) {
-      throw error
+    if (!existingProfile) {
+      // Profile doesn't exist, create it
+      const { data, error } = await supabase
+        .from('seller_profiles')
+        .insert({
+          id: userId,
+          ...profileData,
+          profile_completed: true
+        })
+        .select()
+        .single()
+
+      if (error) {
+        throw error
+      }
+
+      return { data, error: null }
+    } else {
+      // Profile exists, update it
+      const { data, error } = await supabase
+        .from('seller_profiles')
+        .update({
+          ...profileData,
+          profile_completed: true
+        })
+        .eq('id', userId)
+        .select()
+        .single()
+
+      if (error) {
+        throw error
+      }
+
+      return { data, error: null }
     }
-
-    return { data, error: null }
   } catch (error: any) {
     return { data: null, error: error.message }
   }
@@ -213,9 +231,15 @@ export async function deleteAccount() {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (user) {
-      // Delete profile first
+      // Delete from customer_profiles first
       await supabase
-        .from('profile')
+        .from('customer_profiles')
+        .delete()
+        .eq('id', user.id)
+      
+      // Delete from seller_profiles
+      await supabase
+        .from('seller_profiles')
         .delete()
         .eq('id', user.id)
       
@@ -234,12 +258,14 @@ export async function deleteAccount() {
 export async function uploadProfilePhoto(userId: string, file: File) {
   try {
     const fileExt = file.name.split('.').pop()
-    const fileName = `${userId}-${Math.random()}.${fileExt}`
-    const filePath = `profiles/${fileName}`
+    const fileName = `profile.${fileExt}`
+    const filePath = `${userId}/${fileName}` // User ID as folder name to match RLS policy
 
     const { error: uploadError } = await supabase.storage
       .from('profile-photos')
-      .upload(filePath, file)
+      .upload(filePath, file, {
+        upsert: true // Allow overwriting existing profile photos
+      })
 
     if (uploadError) {
       throw uploadError
@@ -250,14 +276,38 @@ export async function uploadProfilePhoto(userId: string, file: File) {
       .getPublicUrl(filePath)
 
     // Update profile with photo URL
-    const { error: updateError } = await supabase
-      .from('profile')
-      .update({ photo_url: data.publicUrl })
-      .eq('id', userId)
-
-    if (updateError) {
-      throw updateError
+    const updateResult = await updateUserProfile(userId, { photo_url: data.publicUrl })
+    
+    if (updateResult.error) {
+      throw new Error(updateResult.error)
     }
+
+    return { data: data.publicUrl, error: null }
+  } catch (error: any) {
+    return { data: null, error: error.message }
+  }
+}
+
+// Upload profile photo without updating profile (for profile setup)
+export async function uploadProfilePhotoOnly(userId: string, file: File) {
+  try {
+    const fileExt = file.name.split('.').pop()
+    const fileName = `profile.${fileExt}`
+    const filePath = `${userId}/${fileName}` // User ID as folder name to match RLS policy
+
+    const { error: uploadError } = await supabase.storage
+      .from('profile-photos')
+      .upload(filePath, file, {
+        upsert: true // Allow overwriting existing profile photos
+      })
+
+    if (uploadError) {
+      throw uploadError
+    }
+
+    const { data } = supabase.storage
+      .from('profile-photos')
+      .getPublicUrl(filePath)
 
     return { data: data.publicUrl, error: null }
   } catch (error: any) {
@@ -291,39 +341,107 @@ export async function signUp(email: string, password: string, userType: 'custome
 // Get user profile
 export async function getUserProfile(userId: string) {
   try {
-    const { data, error } = await supabase
-      .from('profile')
+    // First check customer_profiles
+    const { data: customerData, error: customerError } = await supabase
+      .from('customer_profiles')
       .select('*')
       .eq('id', userId)
       .maybeSingle()
 
-    if (error) {
-      throw error
+    if (customerData) {
+      return { data: customerData, error: null }
     }
 
-    return { data, error: null }
+    // Then check seller_profiles
+    const { data: sellerData, error: sellerError } = await supabase
+      .from('seller_profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (sellerData) {
+      return { data: sellerData, error: null }
+    }
+
+    // If neither found, return null
+    return { data: null, error: null }
   } catch (error: any) {
     return { data: null, error: error.message }
   }
 }
 
-// Update user profile
+// Update user profile - creates profile if it doesn't exist
 export async function updateUserProfile(userId: string, updates: Partial<CustomerProfile | SellerProfile>) {
   try {
-    // First check if profile exists
-    const { data: existingProfile } = await supabase
-      .from('profile')
+    // First check if user exists in customer_profiles
+    const { data: customerProfile } = await supabase
+      .from('customer_profiles')
       .select('id')
       .eq('id', userId)
       .maybeSingle()
 
-    if (!existingProfile) {
-      // Profile doesn't exist, create it first
+    if (customerProfile) {
+      // Update customer profile
       const { data, error } = await supabase
-        .from('profile')
+        .from('customer_profiles')
+        .update(updates)
+        .eq('id', userId)
+        .select()
+        .single()
+
+      if (error) {
+        throw error
+      }
+
+      return { data, error: null }
+    }
+
+    // Check if user exists in seller_profiles
+    const { data: sellerProfile } = await supabase
+      .from('seller_profiles')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (sellerProfile) {
+      // Update seller profile
+      const { data, error } = await supabase
+        .from('seller_profiles')
+        .update(updates)
+        .eq('id', userId)
+        .select()
+        .single()
+
+      if (error) {
+        throw error
+      }
+
+      return { data, error: null }
+    }
+
+    // If neither profile exists, get user info to create profile
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      throw new Error('User not authenticated')
+    }
+
+    const userType = user.user_metadata?.user_type || 'customer'
+    
+    if (userType === 'seller') {
+      // Create seller profile
+      const { data, error } = await supabase
+        .from('seller_profiles')
         .insert({
           id: userId,
-          role: 'customer', // Default role, should be updated based on user type
+          email: user.email || '',
+          first_name: '',
+          last_name: '',
+          country: '',
+          address: '',
+          business_name: '',
+          business_address: '',
+          business_description: '',
+          profile_completed: false,
           ...updates
         })
         .select()
@@ -335,11 +453,19 @@ export async function updateUserProfile(userId: string, updates: Partial<Custome
 
       return { data, error: null }
     } else {
-      // Profile exists, update it
+      // Create customer profile
       const { data, error } = await supabase
-        .from('profile')
-        .update(updates)
-        .eq('id', userId)
+        .from('customer_profiles')
+        .insert({
+          id: userId,
+          email: user.email || '',
+          first_name: '',
+          last_name: '',
+          country: '',
+          address: '',
+          profile_completed: false,
+          ...updates
+        })
         .select()
         .single()
 
@@ -411,30 +537,64 @@ export async function getCurrentUserWithProfile() {
       return { user: null, profile: null, error: error?.message || 'No user found' }
     }
 
-    // Try to get profile, but don't fail if table doesn't exist
+    // Determine user type from auth metadata
+    const userType = user.user_metadata?.user_type
+    
     try {
-      const { data: profile, error: profileError } = await getUserProfile(user.id)
+      let profile = null
+      let profileError = null
+
+      if (userType === 'seller') {
+        // Try to get seller profile
+        const { data, error } = await supabase
+          .from('seller_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle()
+        
+        profile = data
+        profileError = error
+      } else if (userType === 'customer') {
+        // Try to get customer profile
+        const { data, error } = await supabase
+          .from('customer_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle()
+        
+        profile = data
+        profileError = error
+      }
       
       if (profileError) {
-        console.log('Profile table may not exist yet or no profile found')
-        // Return user data from auth metadata as fallback
+        console.log('Profile may not exist yet:', profileError)
+      }
+
+      // Add role information to profile
+      if (profile) {
+        profile.role = userType
+      }
+
+      // Return profile or fallback
+      if (profile) {
+        return { user, profile, error: null }
+      } else {
+        // Fallback to auth metadata
         const fallbackProfile = {
           first_name: user.user_metadata?.first_name,
           last_name: user.user_metadata?.last_name,
           business_name: user.user_metadata?.business_name,
-          role: user.user_metadata?.user_type
+          role: userType
         }
         return { user, profile: fallbackProfile, error: null }
       }
-
-      return { user, profile, error: null }
     } catch (profileErr) {
       // Profile table doesn't exist, use auth metadata
       const fallbackProfile = {
         first_name: user.user_metadata?.first_name,
         last_name: user.user_metadata?.last_name,
         business_name: user.user_metadata?.business_name,
-        role: user.user_metadata?.user_type
+        role: userType
       }
       return { user, profile: fallbackProfile, error: null }
     }

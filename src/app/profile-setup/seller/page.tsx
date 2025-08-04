@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { completeSellerProfile, uploadProfilePhoto } from "@/lib/supabase";
+import { completeSellerProfile, uploadProfilePhotoOnly, getCurrentUser } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function SellerProfileSetup() {
@@ -17,6 +17,7 @@ export default function SellerProfileSetup() {
   const [businessDescription, setBusinessDescription] = useState("");
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>("");
+  const [userEmail, setUserEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -26,6 +27,13 @@ export default function SellerProfileSetup() {
   useEffect(() => {
     if (!userId) {
       router.push('/register');
+    } else {
+      // Get current user to fetch email
+      getCurrentUser().then(({ user }) => {
+        if (user?.email) {
+          setUserEmail(user.email);
+        }
+      });
     }
   }, [userId, router]);
 
@@ -59,10 +67,10 @@ export default function SellerProfileSetup() {
     setLoading(true);
 
     try {
-      // Upload photo if provided
+      // Upload photo first if provided
       let photoUrl = "";
       if (profilePhoto) {
-        const { data: uploadData, error: uploadError } = await uploadProfilePhoto(userId, profilePhoto);
+        const { data: uploadData, error: uploadError } = await uploadProfilePhotoOnly(userId, profilePhoto);
         if (uploadError) {
           console.error("Photo upload failed:", uploadError);
         } else {
@@ -70,10 +78,11 @@ export default function SellerProfileSetup() {
         }
       }
 
-      // Complete profile
+      // Complete profile with photo URL
       const { data, error } = await completeSellerProfile(userId, {
         first_name: firstName,
         last_name: lastName,
+        email: userEmail,
         country,
         address,
         contact_number: contactNumber || undefined,
@@ -85,10 +94,11 @@ export default function SellerProfileSetup() {
 
       if (error) {
         setError(error);
-      } else {
-        // Redirect to seller dashboard
-        router.push("/account/seller");
+        return;
       }
+
+      // Redirect to seller dashboard
+      router.push("/account/seller");
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred");
     } finally {

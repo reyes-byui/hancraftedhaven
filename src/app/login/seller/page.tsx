@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { signIn } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import MainHeader from "@/components/MainHeader";
 
 export default function SellerLoginPage() {
   const [email, setEmail] = useState("");
@@ -35,19 +36,18 @@ export default function SellerLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8f5f2] px-4">
-      <Link href="/" className="absolute left-4 top-4" aria-label="Home">
-        <Image src="/file.svg" alt="Home" width={32} height={32} className="hover:scale-110 transition-transform" />
-      </Link>
+    <div className="min-h-screen bg-[#f8f5f2]">
+      <MainHeader />
       
-      <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md mt-8">
-        <h1 className="text-2xl font-serif text-[#8d6748] font-bold mb-6 text-center">Seller Sign In</h1>
-        
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
+      <div className="flex flex-col items-center justify-center px-4 py-8">
+        <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
+          <h1 className="text-2xl font-serif text-[#8d6748] font-bold mb-6 text-center">Seller Sign In</h1>
+          
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              {error}
+            </div>
+          )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1">
@@ -89,6 +89,7 @@ export default function SellerLoginPage() {
         <div className="text-center mt-4 text-sm">
           <Link href="/login/customer" className="text-[#8d6748] hover:underline">Are you a customer? Sign in here</Link>
         </div>
+      </div>
       </div>
     </div>
   );

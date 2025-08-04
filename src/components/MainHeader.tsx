@@ -2,13 +2,46 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getCurrentUserWithProfile, signOut } from "@/lib/supabase";
 
 export default function MainHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function checkUser() {
+      const { user, profile } = await getCurrentUserWithProfile();
+      setUser(user);
+      setProfile(profile);
+      setLoading(false);
+    }
+    checkUser();
+  }, []);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    setUser(null);
+    setProfile(null);
+    // Refresh the page to update the UI
+    window.location.reload();
+  };
+
+  const getUserDisplayName = () => {
+    if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name} ${profile.last_name}`;
+    } else if (profile?.first_name) {
+      return profile.first_name;
+    } else if (user?.email) {
+      return user.email.split('@')[0];
+    }
+    return 'User';
   };
 
   return (
@@ -35,11 +68,37 @@ export default function MainHeader() {
             <Link href="/contact" className="text-[#8d6748] hover:underline">Contact</Link>
           </nav>
 
-          {/* Desktop Login Button */}
+          {/* Desktop Login/User Info */}
           <div className="hidden md:block">
-            <Link href="/login" className="bg-[#a3b18a] hover:bg-[#8d6748] text-white font-semibold rounded-full px-6 py-2 shadow-lg transition-colors">
-              Log In
-            </Link>
+            {loading ? (
+              <div className="text-[#8d6748]">Loading...</div>
+            ) : user ? (
+              <div className="flex items-center gap-4">
+                <div className="text-[#8d6748]">
+                  <span className="text-sm">Logged in as</span>
+                  <br />
+                  <span className="font-semibold">{getUserDisplayName()}</span>
+                </div>
+                <div className="flex gap-2">
+                  <Link 
+                    href={profile?.role === 'seller' ? '/account/seller' : '/account/customer'}
+                    className="bg-[#a3b18a] hover:bg-[#8d6748] text-white font-semibold rounded-full px-4 py-2 shadow-lg transition-colors text-sm"
+                  >
+                    Dashboard
+                  </Link>
+                  <button
+                    onClick={handleSignOut}
+                    className="bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-full px-4 py-2 shadow-lg transition-colors text-sm"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <Link href="/login" className="bg-[#a3b18a] hover:bg-[#8d6748] text-white font-semibold rounded-full px-6 py-2 shadow-lg transition-colors">
+                Log In
+              </Link>
+            )}
           </div>
 
           {/* Mobile Hamburger Button */}
@@ -93,13 +152,44 @@ export default function MainHeader() {
           >
             Contact
           </Link>
-          <Link 
-            href="/login" 
-            className="bg-[#a3b18a] hover:bg-[#8d6748] text-white font-semibold rounded-full px-6 py-3 shadow-lg transition-colors text-center mt-4"
-            onClick={() => setIsMenuOpen(false)}
-          >
-            Log In
-          </Link>
+          
+          {/* Mobile Login/User Info */}
+          {loading ? (
+            <div className="text-[#8d6748] mt-4">Loading...</div>
+          ) : user ? (
+            <div className="flex flex-col items-center gap-3 mt-4">
+              <div className="text-[#8d6748] text-center">
+                <div className="text-sm">Logged in as</div>
+                <div className="font-semibold">{getUserDisplayName()}</div>
+              </div>
+              <div className="flex flex-col gap-2 w-full max-w-xs">
+                <Link 
+                  href={profile?.role === 'seller' ? '/account/seller' : '/account/customer'}
+                  className="bg-[#a3b18a] hover:bg-[#8d6748] text-white font-semibold rounded-full px-6 py-3 shadow-lg transition-colors text-center"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Dashboard
+                </Link>
+                <button
+                  onClick={() => {
+                    handleSignOut();
+                    setIsMenuOpen(false);
+                  }}
+                  className="bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-full px-6 py-3 shadow-lg transition-colors text-center"
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          ) : (
+            <Link 
+              href="/login" 
+              className="bg-[#a3b18a] hover:bg-[#8d6748] text-white font-semibold rounded-full px-6 py-3 shadow-lg transition-colors text-center mt-4"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Log In
+            </Link>
+          )}
         </nav>
       </div>
     </header>
