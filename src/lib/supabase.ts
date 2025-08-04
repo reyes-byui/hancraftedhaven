@@ -498,6 +498,58 @@ export async function signIn(email: string, password: string) {
   }
 }
 
+// Sign in as customer with user type validation
+export async function signInCustomer(email: string, password: string) {
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
+      throw error
+    }
+
+    // Check if user is registered as a customer
+    const userType = data.user?.user_metadata?.user_type
+    if (userType !== 'customer') {
+      // Sign out the user immediately
+      await supabase.auth.signOut()
+      throw new Error('This account is not registered as a customer. Please use the seller login.')
+    }
+
+    return { data, error: null }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Sign in as seller with user type validation
+export async function signInSeller(email: string, password: string) {
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
+      throw error
+    }
+
+    // Check if user is registered as a seller
+    const userType = data.user?.user_metadata?.user_type
+    if (userType !== 'seller') {
+      // Sign out the user immediately
+      await supabase.auth.signOut()
+      throw new Error('This account is not registered as a seller. Please use the customer login.')
+    }
+
+    return { data, error: null }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
 // Sign out function
 export async function signOut() {
   try {

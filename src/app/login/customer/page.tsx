@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { signIn } from "@/lib/supabase";
+import { signInCustomer } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import MainHeader from "@/components/MainHeader";
 
@@ -19,7 +19,7 @@ export default function CustomerLoginPage() {
     setLoading(true);
 
     try {
-      const { error } = await signIn(email, password);
+      const { error } = await signInCustomer(email, password);
 
       if (error) {
         setError(error);
