@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { getCurrentUserWithProfile, updateUserProfile, updatePassword, deleteAccount, uploadProfilePhoto } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
 export default function AccountSettings() {
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const [user, setUser] = useState<{ id: string; email?: string; created_at?: string } | null>(null);
+  const [profile, setProfile] = useState<{ role?: string; first_name?: string; last_name?: string; country?: string; address?: string; contact_number?: string; business_name?: string; business_address?: string; business_description?: string; photo_url?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'account'>('profile');
   const [error, setError] = useState("");
@@ -28,7 +29,6 @@ export default function AccountSettings() {
   const [photoPreview, setPhotoPreview] = useState<string>("");
 
   // Password form fields
-  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -76,6 +76,12 @@ export default function AccountSettings() {
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      setError("User not authenticated");
+      return;
+    }
+    
     setError("");
     setSuccess("");
     setIsUpdating(true);
@@ -94,7 +100,7 @@ export default function AccountSettings() {
       }
 
       // Update profile
-      const updates: any = {
+      const updates: Record<string, string | null> = {
         first_name: firstName,
         last_name: lastName,
         country,
@@ -110,7 +116,7 @@ export default function AccountSettings() {
         updates.business_description = businessDescription;
       }
 
-      const { data, error } = await updateUserProfile(user.id, updates);
+      const { error } = await updateUserProfile(user.id, updates);
 
       if (error) {
         setError(error);
@@ -119,8 +125,8 @@ export default function AccountSettings() {
         setProfile({ ...profile, ...updates });
         setProfilePhoto(null);
       }
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setIsUpdating(false);
     }
@@ -150,12 +156,11 @@ export default function AccountSettings() {
         setError(error);
       } else {
         setSuccess("Password updated successfully!");
-        setCurrentPassword("");
         setNewPassword("");
         setConfirmPassword("");
       }
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setIsUpdating(false);
     }
@@ -178,8 +183,8 @@ export default function AccountSettings() {
         // Redirect to home page
         router.push("/");
       }
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setIsUpdating(false);
     }
@@ -276,7 +281,7 @@ export default function AccountSettings() {
                 <div className="flex flex-col items-center gap-4 mb-6">
                   <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
                     {photoPreview ? (
-                      <img src={photoPreview} alt="Profile" className="w-full h-full object-cover" />
+                      <Image src={photoPreview} alt="Profile" width={128} height={128} className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-gray-400">No Photo</span>
                     )}
@@ -470,7 +475,7 @@ export default function AccountSettings() {
                   <div className="space-y-2 text-sm">
                     <p><strong>Email:</strong> {user?.email}</p>
                     <p><strong>Account Type:</strong> {profile?.role === 'seller' ? 'Seller' : 'Customer'}</p>
-                    <p><strong>Member Since:</strong> {new Date(user?.created_at).toLocaleDateString()}</p>
+                    <p><strong>Member Since:</strong> {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</p>
                   </div>
                 </div>
 
@@ -484,7 +489,7 @@ export default function AccountSettings() {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Type "DELETE" to confirm:
+                        Type &quot;DELETE&quot; to confirm:
                       </label>
                       <input
                         type="text"

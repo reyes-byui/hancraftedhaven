@@ -78,8 +78,8 @@ export async function signUpCustomer(email: string, password: string) {
 
     // Don't create profile here - let the profile setup page handle it
     return { data, error: null }
-  } catch (error: any) {
-    return { data: null, error: error.message }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 
@@ -102,8 +102,8 @@ export async function signUpSeller(email: string, password: string) {
 
     // Don't create profile here - let the profile setup page handle it
     return { data, error: null }
-  } catch (error: any) {
-    return { data: null, error: error.message }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 
@@ -152,8 +152,8 @@ export async function completeCustomerProfile(userId: string, profileData: Compl
 
       return { data, error: null }
     }
-  } catch (error: any) {
-    return { data: null, error: error.message }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 
@@ -202,8 +202,8 @@ export async function completeSellerProfile(userId: string, profileData: Complet
 
       return { data, error: null }
     }
-  } catch (error: any) {
-    return { data: null, error: error.message }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 
@@ -219,8 +219,8 @@ export async function updatePassword(newPassword: string) {
     }
 
     return { data, error: null }
-  } catch (error: any) {
-    return { data: null, error: error.message }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 
@@ -249,8 +249,8 @@ export async function deleteAccount() {
     }
 
     return { error: null }
-  } catch (error: any) {
-    return { error: error.message }
+  } catch (error: unknown) {
+    return { error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 
@@ -283,8 +283,8 @@ export async function uploadProfilePhoto(userId: string, file: File) {
     }
 
     return { data: data.publicUrl, error: null }
-  } catch (error: any) {
-    return { data: null, error: error.message }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 
@@ -310,8 +310,8 @@ export async function uploadProfilePhotoOnly(userId: string, file: File) {
       .getPublicUrl(filePath)
 
     return { data: data.publicUrl, error: null }
-  } catch (error: any) {
-    return { data: null, error: error.message }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 
@@ -333,8 +333,8 @@ export async function signUp(email: string, password: string, userType: 'custome
     }
 
     return { data, error: null }
-  } catch (error: any) {
-    return { data: null, error: error.message }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 
@@ -342,7 +342,7 @@ export async function signUp(email: string, password: string, userType: 'custome
 export async function getUserProfile(userId: string) {
   try {
     // First check customer_profiles
-    const { data: customerData, error: customerError } = await supabase
+    const { data: customerData } = await supabase
       .from('customer_profiles')
       .select('*')
       .eq('id', userId)
@@ -353,7 +353,7 @@ export async function getUserProfile(userId: string) {
     }
 
     // Then check seller_profiles
-    const { data: sellerData, error: sellerError } = await supabase
+    const { data: sellerData } = await supabase
       .from('seller_profiles')
       .select('*')
       .eq('id', userId)
@@ -365,8 +365,8 @@ export async function getUserProfile(userId: string) {
 
     // If neither found, return null
     return { data: null, error: null }
-  } catch (error: any) {
-    return { data: null, error: error.message }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 
@@ -475,8 +475,8 @@ export async function updateUserProfile(userId: string, updates: Partial<Custome
 
       return { data, error: null }
     }
-  } catch (error: any) {
-    return { data: null, error: error.message }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 
@@ -493,8 +493,8 @@ export async function signIn(email: string, password: string) {
     }
 
     return { data, error: null }
-  } catch (error: any) {
-    return { data: null, error: error.message }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 
@@ -508,8 +508,8 @@ export async function signOut() {
     }
 
     return { error: null }
-  } catch (error: any) {
-    return { error: error.message }
+  } catch (error: unknown) {
+    return { error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 
@@ -523,8 +523,8 @@ export async function getCurrentUser() {
     }
 
     return { user, error: null }
-  } catch (error: any) {
-    return { user: null, error: error.message }
+  } catch (error: unknown) {
+    return { user: null, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 
@@ -588,7 +588,7 @@ export async function getCurrentUserWithProfile() {
         }
         return { user, profile: fallbackProfile, error: null }
       }
-    } catch (profileErr) {
+    } catch {
       // Profile table doesn't exist, use auth metadata
       const fallbackProfile = {
         first_name: user.user_metadata?.first_name,
@@ -598,7 +598,7 @@ export async function getCurrentUserWithProfile() {
       }
       return { user, profile: fallbackProfile, error: null }
     }
-  } catch (error: any) {
-    return { user: null, profile: null, error: error.message }
+  } catch (error: unknown) {
+    return { user: null, profile: null, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }

@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { completeSellerProfile, uploadProfilePhotoOnly, getCurrentUser } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function SellerProfileSetup() {
+function SellerProfileSetupForm() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [country, setCountry] = useState("");
@@ -79,7 +79,7 @@ export default function SellerProfileSetup() {
       }
 
       // Complete profile with photo URL
-      const { data, error } = await completeSellerProfile(userId, {
+      const { error } = await completeSellerProfile(userId, {
         first_name: firstName,
         last_name: lastName,
         email: userEmail,
@@ -99,8 +99,8 @@ export default function SellerProfileSetup() {
 
       // Redirect to seller dashboard
       router.push("/account/seller");
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setLoading(false);
     }
@@ -131,7 +131,7 @@ export default function SellerProfileSetup() {
           <div className="flex flex-col items-center gap-4 mb-4">
             <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
               {photoPreview ? (
-                <img src={photoPreview} alt="Profile preview" className="w-full h-full object-cover" />
+                <Image src={photoPreview} alt="Profile preview" width={96} height={96} className="w-full h-full object-cover" />
               ) : (
                 <span className="text-gray-400 text-sm">Photo</span>
               )}
@@ -262,5 +262,13 @@ export default function SellerProfileSetup() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function SellerProfileSetup() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#f8f5f2]"><div className="text-[#8d6748] text-xl">Loading...</div></div>}>
+      <SellerProfileSetupForm />
+    </Suspense>
   );
 }

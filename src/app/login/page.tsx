@@ -1,6 +1,5 @@
 
 import Link from "next/link";
-import Image from "next/image";
 import MainHeader from "@/components/MainHeader";
 
 export default function LoginPage() {
@@ -39,7 +38,7 @@ export default function LoginPage() {
           </div>
 
           <div className="flex justify-center mt-6 text-sm">
-            <Link href="/register" className="text-[#8d6748] hover:underline">Don't have an account? Sign up</Link>
+            <Link href="/register" className="text-[#8d6748] hover:underline">Don&apos;t have an account? Sign up</Link>
           </div>
         </div>
       </div>

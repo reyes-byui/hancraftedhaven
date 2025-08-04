@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useState } from "react";
 import { signIn } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
@@ -20,7 +19,7 @@ export default function CustomerLoginPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await signIn(email, password);
+      const { error } = await signIn(email, password);
 
       if (error) {
         setError(error);
@@ -28,8 +27,8 @@ export default function CustomerLoginPage() {
         // Redirect to customer dashboard or home page
         router.push("/account/customer");
       }
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setLoading(false);
     }

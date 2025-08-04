@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useState } from "react";
 import { signUpCustomer } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
@@ -42,8 +41,8 @@ export default function CustomerRegisterPage() {
         alert("Registration successful! Please check your email to verify your account. You can complete your profile later through your account settings.");
         router.push("/login/customer");
       }
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useState } from "react";
 import { signIn } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
@@ -20,7 +19,7 @@ export default function SellerLoginPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await signIn(email, password);
+      const { error } = await signIn(email, password);
 
       if (error) {
         setError(error);
@@ -28,8 +27,8 @@ export default function SellerLoginPage() {
         // Redirect to seller dashboard
         router.push("/account/seller");
       }
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setLoading(false);
     }

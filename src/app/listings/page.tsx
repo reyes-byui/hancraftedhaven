@@ -1,6 +1,5 @@
 import Link from "next/link";
 import MainHeader from "../../components/MainHeader";
-import Image from "next/image";
 
 export default function ListingsPage() {
   return (
