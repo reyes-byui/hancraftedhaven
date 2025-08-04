@@ -8,25 +8,38 @@ export default function RegisterPage() {
       <Link href="/" className="absolute left-4 top-4" aria-label="Home">
         <Image src="/file.svg" alt="Home" width={32} height={32} className="hover:scale-110 transition-transform" />
       </Link>
-      <div className="bg-white rounded-xl shadow p-8 w-full max-w-md mt-8">
-        <h1 className="text-2xl font-serif text-[#8d6748] font-bold mb-6 text-center">Create Your Seller Account</h1>
-        <form className="flex flex-col gap-4">
-          <label className="flex flex-col gap-1">
-            <span className="text-[#4d5c3a] font-medium">Email</span>
-            <input type="email" className="border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#bfa76a]" required />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-[#4d5c3a] font-medium">Password</span>
-            <input type="password" className="border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#bfa76a]" required />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-[#4d5c3a] font-medium">Confirm Password</span>
-            <input type="password" className="border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#bfa76a]" required />
-          </label>
-          <button type="submit" className="bg-[#a3b18a] hover:bg-[#8d6748] text-white font-semibold rounded-full px-6 py-2 mt-2 transition-colors">Create Account</button>
-        </form>
-        <div className="flex justify-between mt-4 text-sm">
-          <Link href="/login" className="text-[#8d6748] hover:underline">Already have an account?</Link>
+      
+      <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md mt-8">
+        <h1 className="text-2xl font-serif text-[#8d6748] font-bold mb-6 text-center">Join Handcrafted Haven</h1>
+        
+        <div className="flex flex-col gap-4">
+          <div className="text-center mb-6">
+            <p className="text-[#4d5c3a] text-lg">Choose your account type:</p>
+          </div>
+
+          <Link 
+            href="/register/customer"
+            className="bg-[#a3b18a] hover:bg-[#8d6748] text-white font-semibold rounded-full px-6 py-4 text-center transition-colors shadow-lg"
+          >
+            <div className="flex flex-col items-center gap-2">
+              <span className="text-lg">Register as Customer</span>
+              <span className="text-sm opacity-90">Shop for handcrafted items</span>
+            </div>
+          </Link>
+
+          <Link 
+            href="/register/seller"
+            className="bg-[#bfa76a] hover:bg-[#8d6748] text-white font-semibold rounded-full px-6 py-4 text-center transition-colors shadow-lg"
+          >
+            <div className="flex flex-col items-center gap-2">
+              <span className="text-lg">Register as Seller</span>
+              <span className="text-sm opacity-90">Sell your handcrafted creations</span>
+            </div>
+          </Link>
+        </div>
+
+        <div className="flex justify-center mt-6 text-sm">
+          <Link href="/login" className="text-[#8d6748] hover:underline">Already have an account? Sign in</Link>
         </div>
       </div>
     </div>
