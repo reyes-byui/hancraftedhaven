@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { getCurrentUserWithProfile, signOut, getSellerProducts, type Product } from "@/lib/supabase";
+import { getCurrentUserWithProfile, signOut, getSellerProducts, getSellerOrders, updateOrderStatus, type Product, type OrderItem, type Order } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import AddProductModal from "@/components/AddProductModal";
 import ProductsList from "@/components/ProductsList";
@@ -12,10 +12,12 @@ export default function SellerDashboard() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [profile, setProfile] = useState<{ first_name?: string; last_name?: string; business_name?: string; photo_url?: string } | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<(OrderItem & { order: Order })[]>([]);
   const [loading, setLoading] = useState(true);
   const [productsLoading, setProductsLoading] = useState(false);
+  const [ordersLoading, setOrdersLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'products'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders'>('overview');
   const router = useRouter();
 
   useEffect(() => {
@@ -27,6 +29,7 @@ export default function SellerDashboard() {
         setUser(user);
         setProfile(profile);
         await loadProducts();
+        await loadOrders();
       }
       setLoading(false);
     }
@@ -49,6 +52,28 @@ export default function SellerDashboard() {
     }
   };
 
+  const loadOrders = async () => {
+    setOrdersLoading(true);
+    try {
+      console.log('Loading orders...');
+      const { data, error } = await getSellerOrders();
+      if (error) {
+        console.error('Error loading orders:', error);
+        alert(`Error loading orders: ${error}`);
+        setOrders([]);
+      } else {
+        console.log('Orders loaded successfully:', data);
+        setOrders(data);
+      }
+    } catch (error) {
+      console.error('Caught error loading orders:', error);
+      alert(`Caught error loading orders: ${error}`);
+      setOrders([]);
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     router.push("/");
@@ -59,8 +84,8 @@ export default function SellerDashboard() {
   };
 
   const activeProducts = products.filter(p => p.is_active);
-  // TODO: Replace with actual sales data when orders/sales system is implemented
-  const totalRevenue = 0; // Real revenue will be calculated from actual sales/orders
+  // Calculate revenue from orders
+  const totalRevenue = orders.reduce((sum, orderItem) => sum + orderItem.subtotal, 0);
 
   if (loading) {
     return (
@@ -160,6 +185,16 @@ export default function SellerDashboard() {
               >
                 My Products ({products.length})
               </button>
+              <button
+                onClick={() => setActiveTab('orders')}
+                className={`py-4 px-6 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'orders'
+                    ? 'border-[#8d6748] text-[#8d6748]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Orders ({orders.length})
+              </button>
             </nav>
           </div>
 
@@ -190,11 +225,14 @@ export default function SellerDashboard() {
                 </button>
 
                 {/* Orders */}
-                <div className="bg-[#f8f5f2] p-6 rounded-lg border">
+                <button
+                  onClick={() => setActiveTab('orders')}
+                  className="bg-[#f8f5f2] hover:bg-[#f0ede8] p-6 rounded-lg border transition-colors text-left"
+                >
                   <h3 className="text-xl font-semibold text-[#8d6748] mb-2">Orders</h3>
-                  <p className="text-[#4d5c3a]">View and manage customer orders.</p>
-                  <p className="text-sm text-gray-500 mt-2">Coming soon...</p>
-                </div>
+                  <p className="text-[#4d5c3a] mb-3">View and manage customer orders.</p>
+                  <div className="text-2xl font-bold text-[#8d6748]">{orders.length} Orders</div>
+                </button>
 
                 {/* Analytics */}
                 <div className="bg-[#f8f5f2] p-6 rounded-lg border">
@@ -236,6 +274,97 @@ export default function SellerDashboard() {
                   </div>
                 ) : (
                   <ProductsList products={products} onProductUpdated={loadProducts} />
+                )}
+              </div>
+            )}
+
+            {activeTab === 'orders' && (
+              <div>
+                <h2 className="text-2xl font-serif font-bold text-[#8d6748] mb-6">Customer Orders</h2>
+
+                {ordersLoading ? (
+                  <div className="text-center py-12">
+                    <div className="text-[#8d6748] text-xl">Loading orders...</div>
+                  </div>
+                ) : orders.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-gray-500 text-xl mb-4">No orders yet</div>
+                    <p className="text-gray-400 mb-4">When customers purchase your products, orders will appear here.</p>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-2xl mx-auto">
+                      <p className="text-blue-800 text-sm">
+                        <strong>Setup Required:</strong> To enable the full e-commerce functionality, you need to set up the database tables. 
+                        Check the <code className="bg-blue-100 px-2 py-1 rounded">docs/ECOMMERCE_FEATURES_SETUP.md</code> file for instructions.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {orders.map((orderItem) => (
+                      <div key={orderItem.id} className="bg-white border border-gray-200 rounded-lg p-6">
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <h3 className="font-bold text-lg text-[#8d6748] mb-1">
+                              {orderItem.product_name}
+                            </h3>
+                            <p className="text-sm text-gray-600 mb-2">
+                              Order #{orderItem.order_id.slice(-8).toUpperCase()} • 
+                              Placed on {orderItem.order && orderItem.order.created_at 
+                                ? new Date(orderItem.order.created_at).toLocaleDateString()
+                                : new Date(orderItem.created_at).toLocaleDateString()
+                              }
+                            </p>
+                            <div className="flex items-center gap-4">
+                              <span className="text-sm text-gray-600">
+                                Quantity: {orderItem.quantity}
+                              </span>
+                              <span className="text-sm text-gray-600">
+                                Price: ${orderItem.product_price.toFixed(2)} each
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xl font-bold text-[#8d6748] mb-2">
+                              ${orderItem.subtotal.toFixed(2)}
+                            </div>
+                            <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                              !orderItem.order ? 'bg-gray-100 text-gray-800' :
+                              orderItem.order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              orderItem.order.status === 'processing' ? 'bg-blue-100 text-blue-800' :
+                              orderItem.order.status === 'shipped' ? 'bg-purple-100 text-purple-800' :
+                              orderItem.order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {!orderItem.order ? 'Unknown' : 
+                                orderItem.order.status.charAt(0).toUpperCase() + orderItem.order.status.slice(1)
+                              }
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="border-t border-gray-200 pt-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                            <div>
+                              <strong>Customer:</strong> Customer ID: {orderItem.order?.customer_id?.slice(-8) || 'Unknown'}
+                            </div>
+                            <div>
+                              <strong>Payment:</strong> {orderItem.order?.payment_status 
+                                ? orderItem.order.payment_status.charAt(0).toUpperCase() + orderItem.order.payment_status.slice(1)
+                                : 'Unknown'
+                              }
+                            </div>
+                            <div className="md:col-span-2">
+                              <strong>Shipping Address:</strong> {orderItem.order?.shipping_address || 'Not available'}
+                            </div>
+                            {orderItem.order?.notes && (
+                              <div className="md:col-span-2">
+                                <strong>Notes:</strong> {orderItem.order.notes}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             )}

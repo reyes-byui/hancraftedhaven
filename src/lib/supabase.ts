@@ -109,6 +109,73 @@ export const PRODUCT_CATEGORIES = [
 
 export type ProductCategory = typeof PRODUCT_CATEGORIES[number];
 
+// Order types
+export type Order = {
+  id: string
+  customer_id: string
+  total_amount: number
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
+  shipping_address: string
+  payment_method: string
+  payment_status: 'pending' | 'paid' | 'failed' | 'refunded'
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
+export type OrderItem = {
+  id: string
+  order_id: string
+  product_id: string
+  seller_id: string
+  product_name: string
+  product_price: number
+  quantity: number
+  subtotal: number
+  created_at: string
+}
+
+export type CreateOrderData = {
+  total_amount: number
+  shipping_address: string
+  payment_method?: string
+  notes?: string
+  items: Array<{
+    product_id: string
+    seller_id: string
+    product_name: string
+    product_price: number
+    quantity: number
+    subtotal: number
+  }>
+}
+
+// Favorite types
+export type Favorite = {
+  id: string
+  customer_id: string
+  product_id: string
+  created_at: string
+}
+
+export type FavoriteWithProduct = Favorite & {
+  product: Product
+}
+
+// Cart types
+export type CartItem = {
+  id: string
+  customer_id: string
+  product_id: string
+  quantity: number
+  created_at: string
+  updated_at: string
+}
+
+export type CartItemWithProduct = CartItem & {
+  product: Product
+}
+
 // Complete profile data for forms
 export type CompleteCustomerProfile = Omit<CustomerProfile, 'id' | 'profile_completed'> & {
   first_name: string
@@ -666,26 +733,43 @@ export async function getCurrentUserWithProfile() {
       let profile = null
       let profileError = null
 
-      if (userType === 'seller') {
-        // Try to get seller profile
+      // First try the unified profile table
+      try {
         const { data, error } = await supabase
-          .from('seller_profiles')
+          .from('profile')
           .select('*')
           .eq('id', user.id)
           .maybeSingle()
         
-        profile = data
-        profileError = error
-      } else if (userType === 'customer') {
-        // Try to get customer profile
-        const { data, error } = await supabase
-          .from('customer_profiles')
-          .select('*')
-          .eq('id', user.id)
-          .maybeSingle()
-        
-        profile = data
-        profileError = error
+        if (data) {
+          profile = data
+        } else if (!error) {
+          // Profile table exists but no profile found, try old tables
+          throw new Error('No profile in unified table')
+        } else {
+          throw error
+        }
+      } catch (unifiedError) {
+        // Fall back to separate tables
+        if (userType === 'seller') {
+          const { data, error } = await supabase
+            .from('seller_profiles')
+            .select('*')
+            .eq('id', user.id)
+            .maybeSingle()
+          
+          profile = data
+          profileError = error
+        } else if (userType === 'customer') {
+          const { data, error } = await supabase
+            .from('customer_profiles')
+            .select('*')
+            .eq('id', user.id)
+            .maybeSingle()
+          
+          profile = data
+          profileError = error
+        }
       }
       
       if (profileError) {
@@ -711,7 +795,7 @@ export async function getCurrentUserWithProfile() {
         return { user, profile: fallbackProfile, error: null }
       }
     } catch {
-      // Profile table doesn't exist, use auth metadata
+      // All profile tables failed, use auth metadata
       const fallbackProfile = {
         first_name: user.user_metadata?.first_name,
         last_name: user.user_metadata?.last_name,
@@ -883,5 +967,595 @@ export async function uploadProductImage(file: File, productId: string): Promise
     return { data: publicUrl.publicUrl, error: null }
   } catch (error: unknown) {
     return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// ============ ORDER FUNCTIONS ============
+
+// Create a new order
+export async function createOrder(orderData: CreateOrderData): Promise<{ data: Order | null, error: string | null }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { data: null, error: 'Not authenticated' }
+    }
+
+    // Start a transaction by creating the order first
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        customer_id: user.id,
+        total_amount: orderData.total_amount,
+        shipping_address: orderData.shipping_address,
+        payment_method: orderData.payment_method || 'card',
+        notes: orderData.notes
+      })
+      .select()
+      .single()
+
+    if (orderError) {
+      throw orderError
+    }
+
+    // Insert order items
+    const orderItems = orderData.items.map(item => ({
+      order_id: order.id,
+      product_id: item.product_id,
+      seller_id: item.seller_id,
+      product_name: item.product_name,
+      product_price: item.product_price,
+      quantity: item.quantity,
+      subtotal: item.subtotal
+    }))
+
+    const { error: itemsError } = await supabase
+      .from('order_items')
+      .insert(orderItems)
+
+    if (itemsError) {
+      // Rollback: delete the order if items insertion fails
+      await supabase.from('orders').delete().eq('id', order.id)
+      throw itemsError
+    }
+
+    return { data: order, error: null }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    
+    // Check if it's a table not found error
+    if (errorMessage.includes('relation "public.orders" does not exist') || 
+        errorMessage.includes('relation "public.order_items" does not exist')) {
+      return { 
+        data: null, 
+        error: 'Database tables not set up. Please run the database setup SQL from docs/QUICK_DATABASE_SETUP.md in your Supabase dashboard.' 
+      }
+    }
+    
+    return { data: null, error: errorMessage }
+  }
+}
+
+// Get customer's orders
+export async function getCustomerOrders(): Promise<{ data: Order[], error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      // Check if it's a table doesn't exist error
+      if (error.code === '42P01') {
+        return { data: [], error: 'Orders tables not set up yet. Please run the database setup SQL first.' }
+      }
+      throw error
+    }
+
+    return { data: data || [], error: null }
+  } catch (error: unknown) {
+    return { data: [], error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get order items for a specific order
+export async function getOrderItems(orderId: string): Promise<{ data: OrderItem[], error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('order_items')
+      .select('*')
+      .eq('order_id', orderId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      throw error
+    }
+
+    return { data: data || [], error: null }
+  } catch (error: unknown) {
+    return { data: [], error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get seller's orders (order items for their products)
+export async function getSellerOrders(): Promise<{ data: (OrderItem & { order: Order })[], error: string | null }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { data: [], error: 'Not authenticated' }
+    }
+
+    console.log('Getting orders for seller:', user.id)
+
+    const { data, error } = await supabase
+      .from('order_items')
+      .select(`
+        *,
+        order:orders(*)
+      `)
+      .eq('seller_id', user.id)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Supabase error in getSellerOrders:', error)
+      // Check if it's a table doesn't exist error
+      if (error.code === '42P01') {
+        return { data: [], error: 'Orders tables not set up yet. Please run the database setup SQL first.' }
+      }
+      return { data: [], error: `Database error: ${error.message} (Code: ${error.code})` }
+    }
+
+    console.log('Raw order data from Supabase:', data)
+    return { data: data || [], error: null }
+  } catch (error: unknown) {
+    console.error('Caught error in getSellerOrders:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    
+    // Check if it's a table not found error
+    if (errorMessage.includes('relation "public.order_items" does not exist') || 
+        errorMessage.includes('relation "public.orders" does not exist')) {
+      return { 
+        data: [], 
+        error: 'Database tables not set up. Please run the database setup SQL from docs/QUICK_DATABASE_SETUP.md in your Supabase dashboard.' 
+      }
+    }
+    
+    return { data: [], error: `Error: ${errorMessage}` }
+  }
+}
+
+// Update order status
+export async function updateOrderStatus(orderId: string, status: Order['status']): Promise<{ data: Order | null, error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .update({ status })
+      .eq('id', orderId)
+      .select()
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    return { data, error: null }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// ============ FAVORITES FUNCTIONS ============
+
+// Add product to favorites
+export async function addToFavorites(productId: string): Promise<{ data: Favorite | null, error: string | null }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { data: null, error: 'Not authenticated' }
+    }
+
+    const { data, error } = await supabase
+      .from('favorites')
+      .insert({
+        customer_id: user.id,
+        product_id: productId
+      })
+      .select()
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    return { data, error: null }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    
+    // Check if it's a table not found error
+    if (errorMessage.includes('relation "public.favorites" does not exist')) {
+      return { 
+        data: null, 
+        error: 'Database tables not set up. Please run the database setup SQL from docs/QUICK_DATABASE_SETUP.md in your Supabase dashboard.' 
+      }
+    }
+    
+    return { data: null, error: errorMessage }
+  }
+}
+
+// Remove product from favorites
+export async function removeFromFavorites(productId: string): Promise<{ error: string | null }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { error: 'Not authenticated' }
+    }
+
+    const { error } = await supabase
+      .from('favorites')
+      .delete()
+      .eq('customer_id', user.id)
+      .eq('product_id', productId)
+
+    if (error) {
+      throw error
+    }
+
+    return { error: null }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    
+    // Check if it's a table not found error
+    if (errorMessage.includes('relation "public.favorites" does not exist')) {
+      return { 
+        error: 'Database tables not set up. Please run the database setup SQL from docs/QUICK_DATABASE_SETUP.md in your Supabase dashboard.' 
+      }
+    }
+    
+    return { error: errorMessage }
+  }
+}
+
+// Get customer's favorites with product details
+export async function getCustomerFavorites(): Promise<{ data: FavoriteWithProduct[], error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('favorites')
+      .select(`
+        *,
+        product:products(*)
+      `)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      // Check if it's a table doesn't exist error
+      if (error.code === '42P01') {
+        return { data: [], error: 'Favorites table not set up yet. Please run the database setup SQL first.' }
+      }
+      throw error
+    }
+
+    return { data: data || [], error: null }
+  } catch (error: unknown) {
+    return { data: [], error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Check if product is in favorites
+export async function isProductInFavorites(productId: string): Promise<{ data: boolean, error: string | null }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { data: false, error: 'Not authenticated' }
+    }
+
+    const { data, error } = await supabase
+      .from('favorites')
+      .select('id')
+      .eq('customer_id', user.id)
+      .eq('product_id', productId)
+      .single()
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
+      throw error
+    }
+
+    return { data: !!data, error: null }
+  } catch (error: unknown) {
+    return { data: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// ============ CART FUNCTIONS ============
+
+// Add product to cart
+export async function addToCart(productId: string, quantity: number = 1): Promise<{ data: CartItem | null, error: string | null }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { data: null, error: 'Not authenticated' }
+    }
+
+    // Check if item already exists in cart
+    const { data: existing } = await supabase
+      .from('cart')
+      .select('*')
+      .eq('customer_id', user.id)
+      .eq('product_id', productId)
+      .single()
+
+    if (existing) {
+      // Update quantity if item already in cart
+      const { data, error } = await supabase
+        .from('cart')
+        .update({ 
+          quantity: existing.quantity + quantity,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existing.id)
+        .select()
+        .single()
+
+      if (error) throw error
+      return { data, error: null }
+    } else {
+      // Add new item to cart
+      const { data, error } = await supabase
+        .from('cart')
+        .insert({
+          customer_id: user.id,
+          product_id: productId,
+          quantity: quantity
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      return { data, error: null }
+    }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    
+    if (errorMessage.includes('relation "public.cart" does not exist')) {
+      return { 
+        data: null, 
+        error: 'Shopping cart table not set up. Please run the database setup SQL.' 
+      }
+    }
+    
+    return { data: null, error: errorMessage }
+  }
+}
+
+// Get customer's cart items with product details
+export async function getCartItems(): Promise<{ data: CartItemWithProduct[], error: string | null }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { data: [], error: 'Not authenticated' }
+    }
+
+    const { data, error } = await supabase
+      .from('cart')
+      .select(`
+        *,
+        product:products(*)
+      `)
+      .eq('customer_id', user.id)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return { data: data || [], error: null }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    
+    if (errorMessage.includes('relation "public.cart" does not exist')) {
+      return { 
+        data: [], 
+        error: 'Shopping cart table not set up. Please run the database setup SQL.' 
+      }
+    }
+    
+    return { data: [], error: errorMessage }
+  }
+}
+
+// Update cart item quantity
+export async function updateCartItemQuantity(cartItemId: string, quantity: number): Promise<{ data: CartItem | null, error: string | null }> {
+  try {
+    if (quantity <= 0) {
+      const { error } = await removeFromCart(cartItemId)
+      return { data: null, error }
+    }
+
+    const { data, error } = await supabase
+      .from('cart')
+      .update({ 
+        quantity: quantity,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', cartItemId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return { data, error: null }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Remove item from cart
+export async function removeFromCart(cartItemId: string): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase
+      .from('cart')
+      .delete()
+      .eq('id', cartItemId)
+
+    if (error) throw error
+    return { error: null }
+  } catch (error: unknown) {
+    return { error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Clear entire cart (used after successful checkout)
+export async function clearCart(): Promise<{ error: string | null }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { error: 'Not authenticated' }
+    }
+
+    const { error } = await supabase
+      .from('cart')
+      .delete()
+      .eq('customer_id', user.id)
+
+    if (error) throw error
+    return { error: null }
+  } catch (error: unknown) {
+    return { error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get cart item count
+export async function getCartItemCount(): Promise<{ data: number, error: string | null }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { data: 0, error: null }
+    }
+
+    const { data, error } = await supabase
+      .from('cart')
+      .select('quantity')
+      .eq('customer_id', user.id)
+
+    if (error) throw error
+    
+    const totalCount = data?.reduce((sum, item) => sum + item.quantity, 0) || 0
+    return { data: totalCount, error: null }
+  } catch (error: unknown) {
+    return { data: 0, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Checkout cart - convert cart items to order
+export async function checkoutCart(shippingAddress: string, paymentMethod: string = 'card', notes?: string): Promise<{ data: Order | null, error: string | null }> {
+  try {
+    console.log('Starting checkout process...');
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { data: null, error: 'Not authenticated' }
+    }
+    console.log('User authenticated:', user.id);
+
+    // Get cart items with product details
+    const { data: cartItems, error: cartError } = await getCartItems()
+    if (cartError) {
+      console.error('Cart error:', cartError);
+      return { data: null, error: cartError }
+    }
+    console.log('Cart items loaded:', cartItems?.length);
+
+    if (!cartItems || cartItems.length === 0) {
+      return { data: null, error: 'Cart is empty' }
+    }
+
+    // Calculate total amount
+    const totalAmount = cartItems.reduce((sum, item) => {
+      const price = item.product.discounted_price || item.product.price
+      return sum + (price * item.quantity)
+    }, 0)
+    console.log('Total amount:', totalAmount);
+
+    // Create order
+    const orderData: CreateOrderData = {
+      total_amount: totalAmount,
+      shipping_address: shippingAddress,
+      payment_method: paymentMethod,
+      notes: notes,
+      items: cartItems.map(item => {
+        const price = item.product.discounted_price || item.product.price
+        return {
+          product_id: item.product_id,
+          seller_id: item.product.seller_id,
+          product_name: item.product.name,
+          product_price: price,
+          quantity: item.quantity,
+          subtotal: price * item.quantity
+        }
+      })
+    }
+    console.log('Order data prepared:', orderData);
+
+    const { data: order, error: orderError } = await createOrder(orderData)
+    if (orderError) {
+      console.error('Order creation error:', orderError);
+      return { data: null, error: orderError }
+    }
+    console.log('Order created successfully:', order?.id);
+
+    // Clear cart after successful order creation
+    await clearCart()
+    console.log('Cart cleared');
+
+    return { data: order, error: null }
+  } catch (error: unknown) {
+    console.error('Checkout exception:', error);
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Update customer profile
+export async function updateCustomerProfile(profileData: {
+  first_name?: string;
+  last_name?: string;
+  address?: string;
+  contact_number?: string;
+  country?: string;
+}): Promise<{ error: string | null }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { error: 'Not authenticated' }
+    }
+
+    // Try unified profile table first
+    try {
+      const { error } = await supabase
+        .from('profile')
+        .upsert({
+          id: user.id,
+          role: 'customer', // Ensure role is set for new profiles
+          ...profileData,
+          updated_at: new Date().toISOString()
+        })
+
+      if (!error) {
+        return { error: null }
+      }
+      
+      // If unified table fails, fall back to customer_profiles
+      throw error
+    } catch (unifiedError) {
+      // Fall back to customer_profiles table
+      const { error } = await supabase
+        .from('customer_profiles')
+        .upsert({
+          id: user.id,
+          ...profileData,
+          updated_at: new Date().toISOString()
+        })
+
+      if (error) {
+        return { error: error.message }
+      }
+
+      return { error: null }
+    }
+  } catch (error: unknown) {
+    return { error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }

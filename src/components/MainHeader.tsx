@@ -3,12 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { getCurrentUserWithProfile, signOut } from "@/lib/supabase";
+import { getCurrentUserWithProfile, signOut, getCartItemCount } from "@/lib/supabase";
 
 export default function MainHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [profile, setProfile] = useState<{ first_name?: string; last_name?: string; role?: string } | null>(null);
+  const [cartCount, setCartCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,10 +17,25 @@ export default function MainHeader() {
       const { user, profile } = await getCurrentUserWithProfile();
       setUser(user);
       setProfile(profile);
+      
+      // Load cart count if user is a customer
+      if (user && profile && !profile.role) { // customers don't have a role field
+        loadCartCount();
+      }
+      
       setLoading(false);
     }
     checkUser();
   }, []);
+
+  const loadCartCount = async () => {
+    try {
+      const { data: count } = await getCartItemCount();
+      setCartCount(count);
+    } catch (error) {
+      console.error('Error loading cart count:', error);
+    }
+  };
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -66,6 +82,19 @@ export default function MainHeader() {
                   <span className="font-semibold">{getUserDisplayName()}</span>
                 </div>
                 <div className="flex gap-2">
+                  {profile?.role === 'customer' && (
+                    <Link 
+                      href="/account/customer/cart"
+                      className="relative bg-[#588157] hover:bg-[#3a5a40] text-white font-semibold rounded-full px-4 py-2 shadow-lg transition-colors text-sm flex items-center gap-2"
+                    >
+                      🛒 Cart
+                      {cartCount > 0 && (
+                        <span className="bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center">
+                          {cartCount}
+                        </span>
+                      )}
+                    </Link>
+                  )}
                   <Link 
                     href={profile?.role === 'seller' ? '/account/seller' : '/account/customer'}
                     className="bg-[#a3b18a] hover:bg-[#8d6748] text-white font-semibold rounded-full px-4 py-2 shadow-lg transition-colors text-sm"
@@ -186,6 +215,20 @@ export default function MainHeader() {
                 <div className="font-semibold">{getUserDisplayName()}</div>
               </div>
               <div className="flex flex-col gap-2 w-full max-w-xs">
+                {profile?.role === 'customer' && (
+                  <Link 
+                    href="/account/customer/cart"
+                    className="relative bg-[#588157] hover:bg-[#3a5a40] text-white font-semibold rounded-full px-6 py-3 shadow-lg transition-colors text-center flex items-center justify-center gap-2"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    🛒 Cart
+                    {cartCount > 0 && (
+                      <span className="bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center">
+                        {cartCount}
+                      </span>
+                    )}
+                  </Link>
+                )}
                 <Link 
                   href={profile?.role === 'seller' ? '/account/seller' : '/account/customer'}
                   className="bg-[#a3b18a] hover:bg-[#8d6748] text-white font-semibold rounded-full px-6 py-3 shadow-lg transition-colors text-center"

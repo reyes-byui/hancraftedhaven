@@ -4,7 +4,17 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, useCallback } from "react";
 import MainHeader from "../../components/MainHeader";
-import { getAllProducts, PRODUCT_CATEGORIES, type Product } from "@/lib/supabase";
+import { 
+  getAllProducts, 
+  PRODUCT_CATEGORIES, 
+  type Product,
+  addToFavorites,
+  removeFromFavorites,
+  isProductInFavorites,
+  addToCart,
+  getCartItemCount,
+  getCurrentUserWithProfile
+} from "@/lib/supabase";
 
 type SortOption = 'newest' | 'oldest' | 'alphabetical' | 'price-low' | 'price-high';
 
@@ -14,10 +24,17 @@ export default function ListingsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+  const [profile, setProfile] = useState<{ first_name?: string; last_name?: string; address?: string } | null>(null);
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [cartCount, setCartCount] = useState(0);
+  const [addingToCart, setAddingToCart] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
+  const loadUser = async () => {
+    const { user, profile } = await getCurrentUserWithProfile();
+    setUser(user);
+    setProfile(profile);
+  };
 
   const loadProducts = async () => {
     setLoading(true);
@@ -32,6 +49,26 @@ export default function ListingsPage() {
       console.error('Error loading products:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadProductFavorites = async () => {
+    if (!user) return;
+    
+    try {
+      const favoritePromises = products.map(async (product) => {
+        const { data: isFav } = await isProductInFavorites(product.id);
+        return { productId: product.id, isFavorite: isFav };
+      });
+      
+      const favoriteResults = await Promise.all(favoritePromises);
+      const newFavorites = new Set<string>();
+      favoriteResults.forEach(({ productId, isFavorite }) => {
+        if (isFavorite) newFavorites.add(productId);
+      });
+      setFavorites(newFavorites);
+    } catch (error) {
+      console.error('Error loading favorites:', error);
     }
   };
 
@@ -69,8 +106,89 @@ export default function ListingsPage() {
   }, [products, selectedCategory, sortBy]);
 
   useEffect(() => {
+    loadProducts();
+    loadUser();
+  }, []);
+
+  // Load favorites status for products after user is loaded
+  useEffect(() => {
+    if (user && products.length > 0) {
+      loadProductFavorites();
+    }
+  }, [user, products]);
+
+  // Load cart count after user is loaded
+  useEffect(() => {
+    if (user) {
+      loadCartCount();
+    }
+  }, [user]);
+
+  const loadCartCount = async () => {
+    if (!user) return;
+    
+    try {
+      const { data: count } = await getCartItemCount();
+      setCartCount(count);
+    } catch (error) {
+      console.error('Error loading cart count:', error);
+    }
+  };
+
+  useEffect(() => {
     filterAndSortProducts();
   }, [filterAndSortProducts]);
+
+  const toggleFavorite = async (productId: string) => {
+    if (!user) {
+      // Redirect to login if not authenticated
+      window.location.href = '/login/customer';
+      return;
+    }
+
+    const isFavorite = favorites.has(productId);
+    
+    try {
+      if (isFavorite) {
+        await removeFromFavorites(productId);
+        setFavorites(prev => {
+          const newFavorites = new Set(prev);
+          newFavorites.delete(productId);
+          return newFavorites;
+        });
+      } else {
+        await addToFavorites(productId);
+        setFavorites(prev => new Set(prev).add(productId));
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    }
+  };
+
+  const handleAddToCart = async (product: Product) => {
+    if (!user) {
+      window.location.href = '/login/customer';
+      return;
+    }
+    
+    setAddingToCart(product.id);
+    
+    try {
+      const { error } = await addToCart(product.id, 1);
+      
+      if (error) {
+        alert('Error adding to cart: ' + error);
+      } else {
+        alert('Product added to cart!');
+        await loadCartCount(); // Refresh cart count
+      }
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      alert('Failed to add to cart. Please try again.');
+    } finally {
+      setAddingToCart(null);
+    }
+  };
 
   const formatPrice = (product: Product) => {
     const hasDiscount = product.discount_percentage && product.discount_percentage > 0;
@@ -215,6 +333,30 @@ export default function ListingsPage() {
                       </span>
                     </div>
                   )}
+
+                  {/* Favorite Button */}
+                  {user && (
+                    <button
+                      onClick={() => toggleFavorite(product.id)}
+                      className="absolute top-3 right-3 p-2 bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full shadow-lg transition-all z-10"
+                    >
+                      <svg
+                        className={`w-5 h-5 ${
+                          favorites.has(product.id) ? 'text-red-500 fill-current' : 'text-gray-400'
+                        }`}
+                        fill={favorites.has(product.id) ? 'currentColor' : 'none'}
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                        />
+                      </svg>
+                    </button>
+                  )}
                 </div>
 
                 {/* Product Details */}
@@ -247,17 +389,39 @@ export default function ListingsPage() {
                     </span>
                   </div>
 
-                  {/* Action Button */}
-                  <button
-                    disabled={product.stock_quantity === 0}
-                    className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
-                      product.stock_quantity === 0
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-[#a3b18a] hover:bg-[#8d6748] text-white'
-                    }`}
-                  >
-                    {product.stock_quantity === 0 ? 'Out of Stock' : 'View Details'}
-                  </button>
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <button
+                      disabled={product.stock_quantity === 0 || addingToCart === product.id}
+                      onClick={() => handleAddToCart(product)}
+                      className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                        product.stock_quantity === 0
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : addingToCart === product.id
+                          ? 'bg-gray-400 text-white cursor-not-allowed'
+                          : 'bg-[#a3b18a] hover:bg-[#8d6748] text-white'
+                      }`}
+                    >
+                      {product.stock_quantity === 0 ? 'Out of Stock' : 
+                       addingToCart === product.id ? 'Adding...' :
+                       user ? 'Add to Cart' : 'Login to Add'}
+                    </button>
+                    
+                    {user && product.stock_quantity > 0 && (
+                      <button
+                        onClick={() => toggleFavorite(product.id)}
+                        className={`p-2 rounded-lg font-medium transition-colors ${
+                          favorites.has(product.id)
+                            ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        <svg className="w-5 h-5" fill={favorites.has(product.id) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Product Footer */}
