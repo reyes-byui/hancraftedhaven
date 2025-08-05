@@ -58,7 +58,8 @@ export default function SellerDashboard() {
   };
 
   const activeProducts = products.filter(p => p.is_active);
-  const totalRevenue = products.reduce((sum, p) => sum + (p.discounted_price || p.price) * Math.max(0, 10 - p.stock_quantity), 0); // Simulated sales
+  // TODO: Replace with actual sales data when orders/sales system is implemented
+  const totalRevenue = 0; // Real revenue will be calculated from actual sales/orders
 
   if (loading) {
     return (
