@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import MainHeader from "../../components/MainHeader";
 import { getAllProducts, PRODUCT_CATEGORIES, type Product } from "@/lib/supabase";
 
@@ -21,7 +21,7 @@ export default function ListingsPage() {
 
   useEffect(() => {
     filterAndSortProducts();
-  }, [products, selectedCategory, sortBy]);
+  }, [filterAndSortProducts]);
 
   const loadProducts = async () => {
     setLoading(true);
@@ -39,7 +39,7 @@ export default function ListingsPage() {
     }
   };
 
-  const filterAndSortProducts = () => {
+  const filterAndSortProducts = useCallback(() => {
     let filtered = [...products];
 
     // Filter by category
@@ -70,7 +70,7 @@ export default function ListingsPage() {
     });
 
     setFilteredProducts(filtered);
-  };
+  }, [products, selectedCategory, sortBy]);
 
   const formatPrice = (product: Product) => {
     const hasDiscount = product.discount_percentage && product.discount_percentage > 0;
@@ -103,7 +103,7 @@ export default function ListingsPage() {
         <div className="mb-8">
           <h1 className="text-4xl font-serif font-bold text-[#8d6748] mb-4">Product Catalog</h1>
           <p className="text-lg text-[#4d5c3a] mb-6">
-            Welcome to Handcrafted Haven's Catalog. Browse and select from various product categories to find items that match your interests.
+            Welcome to Handcrafted Haven&apos;s Catalog. Browse and select from various product categories to find items that match your interests.
           </p>
 
           {/* Filters and Sorting */}
