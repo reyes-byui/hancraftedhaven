@@ -19,10 +19,6 @@ export default function ListingsPage() {
     loadProducts();
   }, []);
 
-  useEffect(() => {
-    filterAndSortProducts();
-  }, [filterAndSortProducts]);
-
   const loadProducts = async () => {
     setLoading(true);
     try {
@@ -71,6 +67,10 @@ export default function ListingsPage() {
 
     setFilteredProducts(filtered);
   }, [products, selectedCategory, sortBy]);
+
+  useEffect(() => {
+    filterAndSortProducts();
+  }, [filterAndSortProducts]);
 
   const formatPrice = (product: Product) => {
     const hasDiscount = product.discount_percentage && product.discount_percentage > 0;
