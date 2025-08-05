@@ -46,35 +46,21 @@ export default function MainHeader() {
 
   return (
     <header className="w-full bg-white shadow-sm">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between px-4 sm:px-8 py-4 sm:py-6 gap-4 md:gap-0">
-        {/* Logo - Mobile: Top Center, Desktop: Left */}
-        <div className="flex justify-center md:justify-start">
-          <Image src="/logo.png" alt="Handcrafted Haven Logo" width={64} height={64} className="sm:w-24 sm:h-24" />
-        </div>
-
-        {/* Title - Mobile: Center, Desktop: With Logo */}
-        <div className="flex justify-center md:justify-start md:-ml-16">
-          <span className="text-xl sm:text-3xl font-serif font-bold text-[#8d6748]">Handcrafted Haven</span>
-        </div>
-
-        {/* Mobile: Hamburger Button Center, Desktop: Navigation + Login */}
-        <div className="flex justify-center md:justify-end items-center gap-6">
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex gap-6 text-lg font-medium">
-            <Link href="/" className="text-[#8d6748] hover:underline">Home</Link>
-            <Link href="/sellers" className="text-[#8d6748] hover:underline">Sellers</Link>
-            <Link href="/listings" className="text-[#8d6748] hover:underline">Listings</Link>
-            <Link href="/about" className="text-[#8d6748] hover:underline">About</Link>
-            <Link href="/contact" className="text-[#8d6748] hover:underline">Contact</Link>
-          </nav>
-
-          {/* Desktop Login/User Info */}
-          <div className="hidden md:block">
+      {/* Desktop: Two-row layout with better spacing */}
+      <div className="hidden md:block px-4 sm:px-8 py-4 sm:py-6">
+        {/* Top Row: Logo, Title, and User Info */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <Image src="/logo.png" alt="Handcrafted Haven Logo" width={64} height={64} className="sm:w-20 sm:h-20" />
+            <span className="text-2xl sm:text-3xl font-serif font-bold text-[#8d6748]">Handcrafted Haven</span>
+          </div>
+          
+          <div className="flex items-center">
             {loading ? (
               <div className="text-[#8d6748]">Loading...</div>
             ) : user ? (
               <div className="flex items-center gap-4">
-                <div className="text-[#8d6748]">
+                <div className="text-[#8d6748] text-right">
                   <span className="text-sm">Logged in as</span>
                   <br />
                   <span className="font-semibold">{getUserDisplayName()}</span>
@@ -100,11 +86,48 @@ export default function MainHeader() {
               </Link>
             )}
           </div>
+        </div>
+
+        {/* Bottom Row: Navigation */}
+        <div className="flex justify-center border-t border-gray-100 pt-4">
+          <nav className="flex gap-8 text-lg font-medium">
+            <Link href="/" className="text-[#8d6748] hover:underline hover:text-[#6b5235] transition-colors">Home</Link>
+            <Link href="/sellers" className="text-[#8d6748] hover:underline hover:text-[#6b5235] transition-colors">Sellers</Link>
+            <Link href="/listings" className="text-[#8d6748] hover:underline hover:text-[#6b5235] transition-colors">Listings</Link>
+            <Link href="/about" className="text-[#8d6748] hover:underline hover:text-[#6b5235] transition-colors">About</Link>
+            <Link href="/contact" className="text-[#8d6748] hover:underline hover:text-[#6b5235] transition-colors">Contact</Link>
+          </nav>
+        </div>
+      </div>
+
+      {/* Mobile: Original single column layout */}
+      <div className="md:hidden flex flex-col px-4 sm:px-8 py-4 sm:py-6 gap-4">
+        {/* Logo - Mobile: Top Center */}
+        <div className="flex justify-center">
+          <Image src="/logo.png" alt="Handcrafted Haven Logo" width={64} height={64} className="sm:w-24 sm:h-24" />
+        </div>
+
+        {/* Title - Mobile: Center */}
+        <div className="flex justify-center">
+          <span className="text-xl sm:text-3xl font-serif font-bold text-[#8d6748]">Handcrafted Haven</span>
+        </div>
+
+        {/* Mobile: User Info and Hamburger */}
+        <div className="flex justify-between items-center">
+          <div className="flex-1">
+            {loading ? (
+              <div className="text-[#8d6748] text-sm">Loading...</div>
+            ) : user ? (
+              <div className="text-[#8d6748] text-sm">
+                <span>Welcome, {getUserDisplayName()}</span>
+              </div>
+            ) : null}
+          </div>
 
           {/* Mobile Hamburger Button */}
           <button
             onClick={toggleMenu}
-            className="md:hidden flex flex-col justify-center items-center w-8 h-8 space-y-1"
+            className="flex flex-col justify-center items-center w-8 h-8 space-y-1"
             aria-label="Toggle menu"
           >
             <span className={`w-6 h-0.5 bg-[#8d6748] transition-all duration-300 ${isMenuOpen ? 'rotate-45 translate-y-1.5' : ''}`}></span>
