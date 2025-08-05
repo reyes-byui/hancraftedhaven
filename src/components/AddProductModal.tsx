@@ -268,16 +268,16 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
               <div className="p-3 bg-[#f8f5f2] rounded-lg">
                 <div className="text-sm text-[#4d5c3a]">Price Preview:</div>
                 <div className="flex items-center gap-2">
-                  {formData.discount_percentage > 0 ? (
+                  {(formData.discount_percentage || 0) > 0 ? (
                     <>
                       <span className="text-lg font-bold text-[#8d6748]">
-                        ${(formData.price * (1 - formData.discount_percentage / 100)).toFixed(2)}
+                        ${(formData.price * (1 - (formData.discount_percentage || 0) / 100)).toFixed(2)}
                       </span>
                       <span className="text-sm text-gray-500 line-through">
                         ${formData.price.toFixed(2)}
                       </span>
                       <span className="text-sm text-red-600 font-medium">
-                        ({formData.discount_percentage}% off)
+                        ({formData.discount_percentage || 0}% off)
                       </span>
                     </>
                   ) : (

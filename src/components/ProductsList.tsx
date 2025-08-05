@@ -10,7 +10,6 @@ interface ProductsListProps {
 }
 
 export default function ProductsList({ products, onProductUpdated }: ProductsListProps) {
-  const [editingProduct, setEditingProduct] = useState<string | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
 
   const handleToggleActive = async (productId: string, isActive: boolean) => {
