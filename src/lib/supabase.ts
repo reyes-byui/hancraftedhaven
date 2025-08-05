@@ -39,6 +39,19 @@ export type SellerProfile = {
   profile_completed?: boolean
 }
 
+// Seller type for the sellers page display
+export type SellerDisplay = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  business_name: string;
+  business_description: string;
+  business_address: string;
+  country: string;
+  photo_url?: string;
+  profile_completed: boolean;
+};
+
 // Complete profile data for forms
 export type CompleteCustomerProfile = Omit<CustomerProfile, 'id' | 'profile_completed'> & {
   first_name: string
@@ -652,5 +665,24 @@ export async function getCurrentUserWithProfile() {
     }
   } catch (error: unknown) {
     return { user: null, profile: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get all sellers for the sellers page
+export async function getAllSellers(): Promise<{ data: SellerDisplay[], error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('seller_profiles')
+      .select('id, first_name, last_name, business_name, business_description, business_address, country, photo_url, profile_completed')
+      .eq('profile_completed', true)
+      .order('business_name', { ascending: true })
+
+    if (error) {
+      throw error
+    }
+
+    return { data: data || [], error: null }
+  } catch (error: unknown) {
+    return { data: [], error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
