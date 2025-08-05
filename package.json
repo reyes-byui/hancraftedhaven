@@ -2,6 +2,7 @@
   "name": "hancraftedhaven",
   "version": "0.1.0",
   "private": true,
+  "// Build fix": "Force Vercel to use latest commit with TypeScript fixes",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
