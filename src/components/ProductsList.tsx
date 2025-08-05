@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { updateProduct, deleteProduct, type Product } from "@/lib/supabase";
+import AddProductModal from "./AddProductModal";
 
 interface ProductsListProps {
   products: Product[];
@@ -11,6 +12,7 @@ interface ProductsListProps {
 
 export default function ProductsList({ products, onProductUpdated }: ProductsListProps) {
   const [loading, setLoading] = useState<string | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   const handleToggleActive = async (productId: string, isActive: boolean) => {
     setLoading(productId);
@@ -150,6 +152,14 @@ export default function ProductsList({ products, onProductUpdated }: ProductsLis
             {/* Action Buttons */}
             <div className="flex gap-2">
               <button
+                onClick={() => setEditingProduct(product)}
+                disabled={loading === product.id}
+                className="flex-1 px-3 py-2 bg-blue-100 text-blue-800 hover:bg-blue-200 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                Edit
+              </button>
+              
+              <button
                 onClick={() => handleToggleActive(product.id, product.is_active)}
                 disabled={loading === product.id}
                 className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -179,6 +189,17 @@ export default function ProductsList({ products, onProductUpdated }: ProductsLis
           </div>
         </div>
       ))}
+      
+      {/* Edit Product Modal */}
+      <AddProductModal
+        isOpen={!!editingProduct}
+        onClose={() => setEditingProduct(null)}
+        onProductAdded={() => {
+          setEditingProduct(null);
+          onProductUpdated();
+        }}
+        editProduct={editingProduct}
+      />
     </div>
   );
 }

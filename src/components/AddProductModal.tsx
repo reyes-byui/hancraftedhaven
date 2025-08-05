@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { createProduct, uploadProductImage, PRODUCT_CATEGORIES, type CreateProductData } from "@/lib/supabase";
+import { useState, useEffect } from "react";
+import { createProduct, uploadProductImage, updateProduct, PRODUCT_CATEGORIES, type CreateProductData, type Product } from "@/lib/supabase";
 import Image from "next/image";
 
 interface AddProductModalProps {
   isOpen: boolean;
   onClose: () => void;
   onProductAdded: () => void;
+  editProduct?: Product | null; // Optional product to edit
 }
 
-export default function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductModalProps) {
+export default function AddProductModal({ isOpen, onClose, onProductAdded, editProduct }: AddProductModalProps) {
   const [formData, setFormData] = useState<CreateProductData>({
     name: '',
     description: '',
@@ -23,6 +24,34 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Populate form when editing
+  useEffect(() => {
+    if (editProduct) {
+      setFormData({
+        name: editProduct.name,
+        description: editProduct.description || '',
+        category: editProduct.category,
+        price: editProduct.price,
+        discount_percentage: editProduct.discount_percentage || 0,
+        stock_quantity: editProduct.stock_quantity
+      });
+      setPreviewUrl(editProduct.image_url || '');
+    } else {
+      // Reset form for new product
+      setFormData({
+        name: '',
+        description: '',
+        category: PRODUCT_CATEGORIES[0],
+        price: 0,
+        discount_percentage: 0,
+        stock_quantity: 1
+      });
+      setPreviewUrl('');
+    }
+    setSelectedFile(null);
+    setError('');
+  }, [editProduct, isOpen]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -60,43 +89,40 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
         throw new Error('Price must be greater than 0');
       }
 
-      // Create the product first
-      const { data: product, error: createError } = await createProduct(formData);
+      let product;
       
-      if (createError || !product) {
-        throw new Error(createError || 'Failed to create product');
+      if (editProduct) {
+        // Update existing product
+        const { data: updatedProduct, error: updateError } = await updateProduct(editProduct.id, formData);
+        if (updateError || !updatedProduct) {
+          throw new Error(updateError || 'Failed to update product');
+        }
+        product = updatedProduct;
+      } else {
+        // Create new product
+        const { data: newProduct, error: createError } = await createProduct(formData);
+        if (createError || !newProduct) {
+          throw new Error(createError || 'Failed to create product');
+        }
+        product = newProduct;
       }
 
       // Upload image if selected
-      let imageUrl = '';
       if (selectedFile) {
         const { data: uploadUrl, error: uploadError } = await uploadProductImage(selectedFile, product.id);
         if (uploadError) {
           console.error('Image upload failed:', uploadError);
           // Don't fail the entire process if image upload fails
         } else if (uploadUrl) {
-          imageUrl = uploadUrl;
           // Update product with image URL
           await fetch('/api/products/update-image', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ productId: product.id, imageUrl })
+            body: JSON.stringify({ productId: product.id, imageUrl: uploadUrl })
           });
         }
       }
 
-      // Reset form
-      setFormData({
-        name: '',
-        description: '',
-        category: PRODUCT_CATEGORIES[0],
-        price: 0,
-        discount_percentage: 0,
-        stock_quantity: 1
-      });
-      setSelectedFile(null);
-      setPreviewUrl('');
-      
       onProductAdded();
       onClose();
     } catch (err) {
@@ -113,7 +139,9 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
       <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-serif font-bold text-[#8d6748]">Add New Product</h2>
+            <h2 className="text-2xl font-serif font-bold text-[#8d6748]">
+              {editProduct ? 'Edit Product' : 'Add New Product'}
+            </h2>
             <button
               onClick={onClose}
               className="text-gray-500 hover:text-gray-700 text-2xl"
@@ -249,15 +277,20 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
                 onChange={handleFileChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8d6748]"
               />
-              {previewUrl && (
+              {(previewUrl || editProduct?.image_url) && (
                 <div className="mt-2">
                   <div className="relative w-32 h-32">
                     <Image
-                      src={previewUrl}
+                      src={previewUrl || editProduct?.image_url || ''}
                       alt="Preview"
                       fill
                       className="object-cover rounded-lg"
                     />
+                    {editProduct?.image_url && !selectedFile && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 rounded-b-lg">
+                        Current Image
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -304,7 +337,10 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
                 disabled={loading}
                 className="flex-1 px-4 py-2 bg-[#8d6748] text-white rounded-lg hover:bg-[#7a5c3f] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Adding Product...' : 'Add Product'}
+                {loading 
+                  ? (editProduct ? 'Updating Product...' : 'Adding Product...') 
+                  : (editProduct ? 'Update Product' : 'Add Product')
+                }
               </button>
             </div>
           </form>
