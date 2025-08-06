@@ -10,7 +10,16 @@ import ProductsList from "@/components/ProductsList";
 
 export default function SellerDashboard() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
-  const [profile, setProfile] = useState<{ first_name?: string; last_name?: string; business_name?: string; photo_url?: string } | null>(null);
+  const [profile, setProfile] = useState<{ 
+    first_name?: string; 
+    last_name?: string; 
+    business_name?: string; 
+    photo_url?: string;
+    contact_number?: string;
+    business_address?: string;
+    country?: string;
+    business_description?: string;
+  } | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<(OrderItem & { order: Order })[]>([]);
   const [loading, setLoading] = useState(true);
@@ -159,6 +168,54 @@ export default function SellerDashboard() {
                 <h4 className="text-lg font-semibold">Categories</h4>
                 <p className="text-2xl font-bold">{new Set(products.map(p => p.category)).size}</p>
               </div>
+            </div>
+          </div>
+
+          {/* Seller Profile Information Display */}
+          <div className="p-8 border-b border-gray-200">
+            <div className="bg-[#f8f5f2] border border-gray-200 rounded-lg p-6">
+              <h2 className="text-xl font-semibold text-[#8d6748] mb-4">Your Seller Profile Information</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium text-[#4d5c3a]">Name:</span>
+                  <span className="ml-2 text-gray-700">
+                    {profile?.first_name || profile?.last_name 
+                      ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+                      : 'Not set'}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium text-[#4d5c3a]">Email:</span>
+                  <span className="ml-2 text-gray-700">{user?.email || 'Not available'}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-[#4d5c3a]">Business Name:</span>
+                  <span className="ml-2 text-gray-700">{profile?.business_name || 'Not set'}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-[#4d5c3a]">Phone:</span>
+                  <span className="ml-2 text-gray-700">{profile?.contact_number || 'Not set'}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-[#4d5c3a]">Business Address:</span>
+                  <span className="ml-2 text-gray-700">{profile?.business_address || 'Not set'}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-[#4d5c3a]">Country:</span>
+                  <span className="ml-2 text-gray-700">{profile?.country || 'Not set'}</span>
+                </div>
+                <div className="md:col-span-2">
+                  <span className="font-medium text-[#4d5c3a]">Business Description:</span>
+                  <span className="ml-2 text-gray-700">{profile?.business_description || 'Not set'}</span>
+                </div>
+              </div>
+              {(!profile?.business_name || !profile?.business_address || !profile?.business_description) && (
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <p className="text-sm text-yellow-800">
+                    <strong>⚠️ Incomplete Profile:</strong> Please complete your seller profile to improve visibility to customers and enable all features.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
