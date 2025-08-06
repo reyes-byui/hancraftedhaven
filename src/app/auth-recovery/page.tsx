@@ -47,7 +47,7 @@ export default function AuthRecoveryPage() {
             Recovering Authentication...
           </h1>
           <p className="text-gray-600 mb-4">
-            We're clearing corrupted authentication tokens and redirecting you to the homepage.
+            We&apos;re clearing corrupted authentication tokens and redirecting you to the homepage.
           </p>
           <div className="text-sm text-gray-500">
             This should complete automatically in a moment.
