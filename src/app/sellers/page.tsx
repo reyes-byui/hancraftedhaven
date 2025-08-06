@@ -123,7 +123,11 @@ export default function SellersPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {sortedSellers.map((seller) => (
-                  <div key={seller.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+                  <Link 
+                    key={seller.id} 
+                    href={`/sellers/${seller.id}`}
+                    className="block bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl hover:scale-105 transition-all duration-200 cursor-pointer"
+                  >
                     {/* Seller Photo */}
                     <div className="h-48 bg-gradient-to-br from-[#e7d7c1] to-[#bfa76a] flex items-center justify-center">
                       {seller.photo_url ? (
@@ -159,17 +163,14 @@ export default function SellersPage() {
                         {seller.business_description}
                       </p>
                       
-                      {/* Action Buttons */}
-                      <div className="flex gap-2">
-                        <button className="flex-1 bg-[#a3b18a] hover:bg-[#8d6748] text-white font-medium py-2 px-4 rounded-lg transition-colors">
-                          View Profile
-                        </button>
-                        <button className="flex-1 border border-[#bfa76a] text-[#8d6748] hover:bg-[#bfa76a] hover:text-white font-medium py-2 px-4 rounded-lg transition-colors">
-                          Message
-                        </button>
+                      {/* Click indicator */}
+                      <div className="text-center">
+                        <span className="text-[#8d6748] text-sm font-medium hover:underline">
+                          View Profile →
+                        </span>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}

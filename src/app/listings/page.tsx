@@ -289,15 +289,15 @@ export default function ListingsPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredProducts.map((product) => (
-              <div key={product.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
-                {/* Product Image */}
-                <div className="relative h-64 bg-gray-100">
+              <div key={product.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 group">
+                {/* Product Image - Clickable */}
+                <Link href={`/products/${product.id}`} className="block relative h-64 bg-gray-100">
                   {product.image_url ? (
                     <Image
                       src={product.image_url}
                       alt={product.name}
                       fill
-                      className="object-cover"
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full text-gray-400">
@@ -357,14 +357,16 @@ export default function ListingsPage() {
                       </svg>
                     </button>
                   )}
-                </div>
+                </Link>
 
                 {/* Product Details */}
                 <div className="p-4">
                   <div className="mb-2">
-                    <h3 className="font-bold text-lg text-[#8d6748] line-clamp-2 mb-1" title={product.name}>
-                      {product.name}
-                    </h3>
+                    <Link href={`/products/${product.id}`} className="block hover:opacity-80 transition-opacity">
+                      <h3 className="font-bold text-lg text-[#8d6748] line-clamp-2 mb-1" title={product.name}>
+                        {product.name}
+                      </h3>
+                    </Link>
                     <p className="text-sm text-[#4d5c3a] font-medium">{product.category}</p>
                   </div>
 

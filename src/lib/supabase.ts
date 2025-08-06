@@ -1693,3 +1693,121 @@ export async function updateCustomerProfile(profileData: {
     return { error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
+
+// Get top sellers by revenue (from delivered orders only)
+export async function getTopSellers(limit: number = 3): Promise<{ data: any[], error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_top_sellers_by_revenue', { result_limit: limit })
+
+    if (error) {
+      // If the function doesn't exist, fall back to a direct query
+      if (error.code === '42883') {
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('seller_profiles')
+          .select('*')
+          .limit(limit)
+
+        if (fallbackError) {
+          throw fallbackError
+        }
+
+        return { data: fallbackData || [], error: null }
+      }
+      throw error
+    }
+
+    return { data: data || [], error: null }
+  } catch (error: unknown) {
+    return { data: [], error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get top crafts by sales quantity (from delivered orders only)
+export async function getTopCrafts(limit: number = 5): Promise<{ data: any[], error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_top_crafts_by_sales', { result_limit: limit })
+
+    if (error) {
+      // If the function doesn't exist, fall back to active products
+      if (error.code === '42883') {
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('products')
+          .select('*')
+          .eq('is_active', true)
+          .limit(limit)
+
+        if (fallbackError) {
+          throw fallbackError
+        }
+
+        return { data: fallbackData || [], error: null }
+      }
+      throw error
+    }
+
+    return { data: data || [], error: null }
+  } catch (error: unknown) {
+    return { data: [], error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get seller profile by ID
+export async function getSellerProfile(sellerId: string): Promise<{ data: any, error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('seller_profiles')
+      .select('*')
+      .eq('id', sellerId)
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    return { data, error: null }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get products by seller ID
+export async function getProductsBySellerId(sellerId: string): Promise<{ data: any[], error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('seller_id', sellerId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      throw error
+    }
+
+    return { data: data || [], error: null }
+  } catch (error: unknown) {
+    return { data: [], error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get product by ID
+export async function getProductById(productId: string): Promise<{ data: any, error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', productId)
+      .eq('is_active', true)
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    return { data, error: null }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
