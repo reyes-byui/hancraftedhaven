@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import MainHeader from "@/components/MainHeader";
 import { getCurrentUserWithProfile, updateCustomerProfile, type CustomerProfile } from "@/lib/supabase";
 
 export default function CustomerProfilePage() {
@@ -83,24 +84,8 @@ export default function CustomerProfilePage() {
 
   return (
     <div className="min-h-screen bg-[#f8f5f2]">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <Link href="/" className="text-2xl font-serif font-bold text-[#8d6748]">
-              Handcrafted Haven
-            </Link>
-            <div className="flex items-center gap-4">
-              <Link href="/account/customer" className="text-[#8d6748] hover:underline">
-                Dashboard
-              </Link>
-              <span className="text-[#4d5c3a]">
-                Welcome, {profile?.first_name ? `${profile.first_name} ${profile.last_name}` : user?.email}
-              </span>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Use consistent header with logo */}
+      <MainHeader />
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

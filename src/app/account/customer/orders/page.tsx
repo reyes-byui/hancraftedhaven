@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import MainHeader from "@/components/MainHeader";
 import { 
   getCurrentUserWithProfile, 
   getCustomerOrders, 
@@ -22,6 +23,13 @@ export default function OrderHistoryPage() {
 
   useEffect(() => {
     loadUserAndOrders();
+    
+    // Set up periodic refresh to catch order status updates
+    const interval = setInterval(() => {
+      loadUserAndOrders();
+    }, 30000); // Refresh every 30 seconds
+    
+    return () => clearInterval(interval);
   }, []);
 
   const loadUserAndOrders = async () => {
@@ -88,36 +96,28 @@ export default function OrderHistoryPage() {
 
   return (
     <div className="min-h-screen bg-[#f8f5f2]">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <Link href="/" className="text-2xl font-serif font-bold text-[#8d6748]">
-              Handcrafted Haven
-            </Link>
-            <div className="flex items-center gap-4">
-              <Link href="/account/customer" className="text-[#8d6748] hover:underline">
-                Dashboard
-              </Link>
-              <span className="text-[#4d5c3a]">
-                {profile?.first_name ? `${profile.first_name}` : user?.email}
-              </span>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Use consistent header with logo */}
+      <MainHeader />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-xl shadow-lg p-8">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-serif text-[#8d6748] font-bold">Order History</h1>
-            <Link 
-              href="/account/customer"
-              className="text-[#8d6748] hover:underline"
-            >
-              ← Back to Dashboard
-            </Link>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={loadUserAndOrders}
+                className="bg-[#a3b18a] hover:bg-[#8d6748] text-white px-4 py-2 rounded-lg transition-colors text-sm"
+              >
+                🔄 Refresh Orders
+              </button>
+              <Link 
+                href="/account/customer"
+                className="text-[#8d6748] hover:underline"
+              >
+                ← Back to Dashboard
+              </Link>
+            </div>
           </div>
 
           {orders.length === 0 ? (

@@ -27,6 +27,7 @@ export default function SellerDashboard() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders'>('overview');
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -112,6 +113,7 @@ export default function SellerDashboard() {
 
   // Handle order status updates
   const handleStatusUpdate = async (orderId: string, newStatus: Order['status']) => {
+    setUpdatingOrderId(orderId);
     try {
       const { error } = await updateOrderStatus(orderId, newStatus);
       if (error) {
@@ -119,10 +121,14 @@ export default function SellerDashboard() {
       } else {
         // Reload orders to reflect the change
         await loadOrders();
+        // Show success message
+        alert(`Order status updated to: ${newStatus}`);
       }
     } catch (error) {
       console.error('Error updating order status:', error);
       alert('Error updating order status. Please try again.');
+    } finally {
+      setUpdatingOrderId(null);
     }
   };
 
@@ -418,32 +424,36 @@ export default function SellerDashboard() {
                                   <>
                                     <button
                                       onClick={() => handleStatusUpdate(orderItem.order.id, 'processing')}
-                                      className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded transition-colors"
+                                      disabled={updatingOrderId === orderItem.order.id}
+                                      className="px-3 py-1 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white text-xs rounded transition-colors"
                                     >
-                                      Accept Order
+                                      {updatingOrderId === orderItem.order.id ? '...' : 'Accept Order'}
                                     </button>
                                     <button
                                       onClick={() => handleStatusUpdate(orderItem.order.id, 'cancelled')}
-                                      className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded transition-colors"
+                                      disabled={updatingOrderId === orderItem.order.id}
+                                      className="px-3 py-1 bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white text-xs rounded transition-colors"
                                     >
-                                      Cancel
+                                      {updatingOrderId === orderItem.order.id ? '...' : 'Cancel'}
                                     </button>
                                   </>
                                 )}
                                 {orderItem.order.status === 'processing' && (
                                   <button
                                     onClick={() => handleStatusUpdate(orderItem.order.id, 'shipped')}
-                                    className="px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded transition-colors"
+                                    disabled={updatingOrderId === orderItem.order.id}
+                                    className="px-3 py-1 bg-purple-500 hover:bg-purple-600 disabled:bg-purple-300 text-white text-xs rounded transition-colors"
                                   >
-                                    Mark as Shipped
+                                    {updatingOrderId === orderItem.order.id ? '...' : 'Mark as Shipped'}
                                   </button>
                                 )}
                                 {orderItem.order.status === 'shipped' && (
                                   <button
                                     onClick={() => handleStatusUpdate(orderItem.order.id, 'delivered')}
-                                    className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded transition-colors"
+                                    disabled={updatingOrderId === orderItem.order.id}
+                                    className="px-3 py-1 bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white text-xs rounded transition-colors"
                                   >
-                                    Mark as Delivered
+                                    {updatingOrderId === orderItem.order.id ? '...' : 'Mark as Delivered'}
                                   </button>
                                 )}
                                 {(['delivered', 'cancelled'].includes(orderItem.order.status)) && (

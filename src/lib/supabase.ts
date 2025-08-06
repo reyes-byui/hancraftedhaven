@@ -1160,6 +1160,8 @@ export async function getSellerOrders(): Promise<{ data: (OrderItem & { order: O
 // Update order status
 export async function updateOrderStatus(orderId: string, status: Order['status']): Promise<{ data: Order | null, error: string | null }> {
   try {
+    console.log(`Attempting to update order ${orderId} to status: ${status}`);
+    
     const { data, error } = await supabase
       .from('orders')
       .update({ status })
@@ -1168,12 +1170,21 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
       .single()
 
     if (error) {
+      console.error('Supabase error updating order status:', error);
       throw error
     }
 
+    console.log('Order status updated successfully:', data);
     return { data, error: null }
   } catch (error: unknown) {
-    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+    console.error('Error in updateOrderStatus:', error);
+    if (error && typeof error === 'object' && 'message' in error) {
+      return { data: null, error: (error as { message: string }).message }
+    }
+    if (error && typeof error === 'object' && 'details' in error) {
+      return { data: null, error: (error as { details: string }).details }
+    }
+    return { data: null, error: error instanceof Error ? error.message : 'Failed to update order status. Please check your permissions.' }
   }
 }
 
