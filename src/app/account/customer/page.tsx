@@ -7,7 +7,15 @@ import { useRouter } from "next/navigation";
 
 export default function CustomerDashboard() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
-  const [profile, setProfile] = useState<{ first_name?: string; last_name?: string; photo_url?: string } | null>(null);
+  const [profile, setProfile] = useState<{ 
+    first_name?: string; 
+    last_name?: string; 
+    photo_url?: string;
+    address?: string;
+    contact_number?: string;
+    country?: string;
+    role?: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
