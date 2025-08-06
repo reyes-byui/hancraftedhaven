@@ -25,8 +25,10 @@ export default function ListingsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [profile, setProfile] = useState<{ first_name?: string; last_name?: string; address?: string } | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [cartCount, setCartCount] = useState(0);
   const [addingToCart, setAddingToCart] = useState<string | null>(null);
 
@@ -115,6 +117,7 @@ export default function ListingsPage() {
     if (user && products.length > 0) {
       loadProductFavorites();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, products]);
 
   // Load cart count after user is loaded
@@ -122,6 +125,7 @@ export default function ListingsPage() {
     if (user) {
       loadCartCount();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadCartCount = async () => {

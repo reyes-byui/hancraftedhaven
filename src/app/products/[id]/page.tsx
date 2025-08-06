@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import MainHeader from '@/components/MainHeader';
-import { getCurrentUserWithProfile, getProductById, getSellerProfile, addToCart } from '@/lib/supabase';
+import { getCurrentUserWithProfile, getProductById, getSellerProfile, addToCart, type Product, type SellerProfile } from '@/lib/supabase';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -13,8 +13,9 @@ export default function ProductDetailPage() {
   const productId = params.id as string;
 
   const [loading, setLoading] = useState(true);
-  const [product, setProduct] = useState<any>(null);
-  const [seller, setSeller] = useState<any>(null);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [seller, setSeller] = useState<SellerProfile | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [addingToCart, setAddingToCart] = useState(false);
@@ -24,6 +25,7 @@ export default function ProductDetailPage() {
       loadProductData();
       loadCurrentUser();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId]);
 
   const loadCurrentUser = async () => {
@@ -99,7 +101,7 @@ export default function ProductDetailPage() {
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-800 mb-2">Product Not Found</h1>
-            <p className="text-gray-600 mb-4">The product you're looking for doesn't exist.</p>
+            <p className="text-gray-600 mb-4">The product you&apos;re looking for doesn&apos;t exist.</p>
             <button 
               onClick={() => router.back()} 
               className="bg-[#8d6748] text-white px-6 py-2 rounded-lg hover:bg-[#6b4d35] transition-colors"

@@ -218,6 +218,27 @@ export type CompleteSellerProfile = Omit<SellerProfile, 'id' | 'profile_complete
   business_description: string
 }
 
+export type TopSeller = {
+  id: string
+  first_name: string
+  last_name: string
+  country: string
+  photo_url: string
+  business_name: string
+  total_revenue: number
+}
+
+export type TopCraft = {
+  id: string
+  name: string
+  price: number
+  image_url: string
+  category: string
+  seller_name: string
+  seller_country: string
+  total_sold: number
+}
+
 // Registration function for customers (minimal - just creates auth user)
 export async function signUpCustomer(email: string, password: string) {
   try {
@@ -784,7 +805,8 @@ export async function getCurrentUserWithProfile() {
         } else {
           throw error
         }
-      } catch (unifiedError) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_unifiedError) {
         // Fall back to separate tables
         if (userType === 'seller') {
           const { data, error } = await supabase
@@ -1673,7 +1695,8 @@ export async function updateCustomerProfile(profileData: {
       
       // If unified table fails, fall back to customer_profiles
       throw error
-    } catch (unifiedError) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_unifiedError) {
       // Fall back to customer_profiles table
       const { error } = await supabase
         .from('customer_profiles')
@@ -1695,7 +1718,7 @@ export async function updateCustomerProfile(profileData: {
 }
 
 // Get top sellers by revenue (from delivered orders only)
-export async function getTopSellers(limit: number = 3): Promise<{ data: any[], error: string | null }> {
+export async function getTopSellers(limit: number = 3): Promise<{ data: TopSeller[], error: string | null }> {
   try {
     const { data, error } = await supabase
       .rpc('get_top_sellers_by_revenue', { result_limit: limit })
@@ -1724,7 +1747,7 @@ export async function getTopSellers(limit: number = 3): Promise<{ data: any[], e
 }
 
 // Get top crafts by sales quantity (from delivered orders only)
-export async function getTopCrafts(limit: number = 5): Promise<{ data: any[], error: string | null }> {
+export async function getTopCrafts(limit: number = 5): Promise<{ data: TopCraft[], error: string | null }> {
   try {
     const { data, error } = await supabase
       .rpc('get_top_crafts_by_sales', { result_limit: limit })
@@ -1754,7 +1777,7 @@ export async function getTopCrafts(limit: number = 5): Promise<{ data: any[], er
 }
 
 // Get seller profile by ID
-export async function getSellerProfile(sellerId: string): Promise<{ data: any, error: string | null }> {
+export async function getSellerProfile(sellerId: string): Promise<{ data: SellerProfile | null, error: string | null }> {
   try {
     const { data, error } = await supabase
       .from('seller_profiles')
@@ -1773,7 +1796,7 @@ export async function getSellerProfile(sellerId: string): Promise<{ data: any, e
 }
 
 // Get products by seller ID
-export async function getProductsBySellerId(sellerId: string): Promise<{ data: any[], error: string | null }> {
+export async function getProductsBySellerId(sellerId: string): Promise<{ data: Product[], error: string | null }> {
   try {
     const { data, error } = await supabase
       .from('products')
@@ -1793,7 +1816,7 @@ export async function getProductsBySellerId(sellerId: string): Promise<{ data: a
 }
 
 // Get product by ID
-export async function getProductById(productId: string): Promise<{ data: any, error: string | null }> {
+export async function getProductById(productId: string): Promise<{ data: Product | null, error: string | null }> {
   try {
     const { data, error } = await supabase
       .from('products')

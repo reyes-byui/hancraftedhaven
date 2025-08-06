@@ -13,7 +13,9 @@ import {
 } from "@/lib/supabase";
 
 export default function OrderHistoryPage() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [profile, setProfile] = useState<{ first_name?: string; last_name?: string } | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [orderItems, setOrderItems] = useState<{ [orderId: string]: OrderItem[] }>({});
@@ -30,6 +32,7 @@ export default function OrderHistoryPage() {
     }, 30000); // Refresh every 30 seconds
     
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadUserAndOrders = async () => {

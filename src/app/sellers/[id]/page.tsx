@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import MainHeader from '@/components/MainHeader';
-import { getCurrentUserWithProfile, getSellerProfile, getProductsBySellerId } from '@/lib/supabase';
+import { getCurrentUserWithProfile, getSellerProfile, getProductsBySellerId, type SellerProfile, type Product } from '@/lib/supabase';
 
 export default function SellerProfilePage() {
   const params = useParams();
@@ -12,8 +12,9 @@ export default function SellerProfilePage() {
   const sellerId = params.id as string;
 
   const [loading, setLoading] = useState(true);
-  const [seller, setSeller] = useState<any>(null);
-  const [products, setProducts] = useState<any[]>([]);
+  const [seller, setSeller] = useState<SellerProfile | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,6 +23,7 @@ export default function SellerProfilePage() {
       loadSellerData();
       loadCurrentUser();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sellerId]);
 
   const loadCurrentUser = async () => {
@@ -56,7 +58,8 @@ export default function SellerProfilePage() {
     }
   };
 
-  const handleAddToCart = (productId: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleAddToCart = (_productId: string) => {
     if (!currentUser) {
       router.push('/login/customer');
       return;
@@ -86,7 +89,7 @@ export default function SellerProfilePage() {
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-800 mb-2">Seller Not Found</h1>
-            <p className="text-gray-600 mb-4">The seller you're looking for doesn't exist.</p>
+            <p className="text-gray-600 mb-4">The seller you&apos;re looking for doesn&apos;t exist.</p>
             <button 
               onClick={() => router.back()} 
               className="bg-[#8d6748] text-white px-6 py-2 rounded-lg hover:bg-[#6b4d35] transition-colors"
@@ -152,7 +155,7 @@ export default function SellerProfilePage() {
           
           {products.length === 0 ? (
             <p className="text-gray-600 text-center py-8">
-              This seller hasn't listed any products yet.
+              This seller hasn&apos;t listed any products yet.
             </p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">

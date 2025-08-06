@@ -28,6 +28,7 @@ export default function FavoritesPage() {
 
   useEffect(() => {
     loadUserAndFavorites();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadUserAndFavorites = async () => {

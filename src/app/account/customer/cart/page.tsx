@@ -16,6 +16,7 @@ import {
 } from "@/lib/supabase";
 
 export default function ShoppingCartPage() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [profile, setProfile] = useState<{ first_name?: string; last_name?: string; address?: string } | null>(null);
   const [cartItems, setCartItems] = useState<CartItemWithProduct[]>([]);
@@ -26,6 +27,7 @@ export default function ShoppingCartPage() {
 
   useEffect(() => {
     loadUserAndCart();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadUserAndCart = async () => {

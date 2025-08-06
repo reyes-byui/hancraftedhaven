@@ -7,7 +7,9 @@ import MainHeader from "@/components/MainHeader";
 import { getCurrentUserWithProfile, updateCustomerProfile, type CustomerProfile } from "@/lib/supabase";
 
 export default function CustomerProfilePage() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -22,6 +24,7 @@ export default function CustomerProfilePage() {
 
   useEffect(() => {
     loadUserProfile();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadUserProfile = async () => {
