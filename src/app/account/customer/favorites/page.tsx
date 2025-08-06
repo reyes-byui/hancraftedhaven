@@ -92,7 +92,7 @@ export default function FavoritesPage() {
         }]
       };
 
-      const { data, error } = await createOrder(orderData);
+      const { error } = await createOrder(orderData);
       
       if (error) {
         alert('Error creating order: ' + error);

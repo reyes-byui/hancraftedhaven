@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { getCurrentUserWithProfile, signOut, getSellerProducts, getSellerOrders, updateOrderStatus, type Product, type OrderItem, type Order } from "@/lib/supabase";
+import { getCurrentUserWithProfile, signOut, getSellerProducts, getSellerOrders, type Product, type OrderItem, type Order } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import AddProductModal from "@/components/AddProductModal";
 import ProductsList from "@/components/ProductsList";

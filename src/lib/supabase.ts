@@ -6,10 +6,13 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Function to handle auth errors and clear corrupted tokens
-export async function handleAuthError(error: any) {
-  if (error?.message?.includes('Invalid Refresh Token') || 
-      error?.message?.includes('Refresh Token Not Found') ||
-      error?.message?.includes('refresh_token_not_found')) {
+export async function handleAuthError(error: { message?: string } | Error | unknown) {
+  const errorMessage = error instanceof Error ? error.message : 
+                      (error as { message?: string })?.message || '';
+  
+  if (errorMessage.includes('Invalid Refresh Token') || 
+      errorMessage.includes('Refresh Token Not Found') ||
+      errorMessage.includes('refresh_token_not_found')) {
     console.log('Detected invalid refresh token, clearing auth state...')
     await supabase.auth.signOut()
     // Clear any local storage items related to auth

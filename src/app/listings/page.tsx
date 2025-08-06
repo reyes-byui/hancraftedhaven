@@ -12,7 +12,6 @@ import {
   removeFromFavorites,
   isProductInFavorites,
   addToCart,
-  getCartItemCount,
   getCurrentUserWithProfile
 } from "@/lib/supabase";
 
@@ -25,15 +24,12 @@ export default function ListingsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
-  const [profile, setProfile] = useState<{ first_name?: string; last_name?: string; address?: string } | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [cartCount, setCartCount] = useState(0);
   const [addingToCart, setAddingToCart] = useState<string | null>(null);
 
   const loadUser = async () => {
-    const { user, profile } = await getCurrentUserWithProfile();
+    const { user } = await getCurrentUserWithProfile();
     setUser(user);
-    setProfile(profile);
   };
 
   const loadProducts = async () => {
@@ -117,24 +113,6 @@ export default function ListingsPage() {
     }
   }, [user, products]);
 
-  // Load cart count after user is loaded
-  useEffect(() => {
-    if (user) {
-      loadCartCount();
-    }
-  }, [user]);
-
-  const loadCartCount = async () => {
-    if (!user) return;
-    
-    try {
-      const { data: count } = await getCartItemCount();
-      setCartCount(count);
-    } catch (error) {
-      console.error('Error loading cart count:', error);
-    }
-  };
-
   useEffect(() => {
     filterAndSortProducts();
   }, [filterAndSortProducts]);
@@ -180,7 +158,6 @@ export default function ListingsPage() {
         alert('Error adding to cart: ' + error);
       } else {
         alert('Product added to cart!');
-        await loadCartCount(); // Refresh cart count
       }
     } catch (error) {
       console.error('Error adding to cart:', error);

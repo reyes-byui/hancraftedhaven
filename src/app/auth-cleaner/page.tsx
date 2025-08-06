@@ -62,7 +62,7 @@ export default function AuthCleanerPage() {
         
         <div className="mb-6">
           <p className="text-[#4d5c3a] mb-4">
-            Use this tool to fix authentication errors like "Invalid Refresh Token"
+            Use this tool to fix authentication errors like &quot;Invalid Refresh Token&quot;
           </p>
           
           {message && (
