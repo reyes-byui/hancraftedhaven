@@ -1008,12 +1008,23 @@ export async function uploadProductImage(file: File, productId: string): Promise
 // Create a new order
 export async function createOrder(orderData: CreateOrderData): Promise<{ data: Order | null, error: string | null }> {
   try {
+    console.log('Starting createOrder function...');
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
+      console.log('User not authenticated');
       return { data: null, error: 'Not authenticated' }
     }
+    console.log('User authenticated in createOrder:', user.id);
 
     // Start a transaction by creating the order first
+    console.log('Attempting to insert order with data:', {
+      customer_id: user.id,
+      total_amount: orderData.total_amount,
+      shipping_address: orderData.shipping_address,
+      payment_method: orderData.payment_method || 'card',
+      notes: orderData.notes
+    });
+
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
@@ -1027,8 +1038,11 @@ export async function createOrder(orderData: CreateOrderData): Promise<{ data: O
       .single()
 
     if (orderError) {
+      console.error('Order insertion error:', orderError);
+      console.error('Error details:', JSON.stringify(orderError, null, 2));
       throw orderError
     }
+    console.log('Order created successfully:', order);
 
     // Insert order items
     const orderItems = orderData.items.map(item => ({
@@ -1042,18 +1056,26 @@ export async function createOrder(orderData: CreateOrderData): Promise<{ data: O
       subtotal: item.subtotal
     }))
 
+    console.log('Attempting to insert order items:', orderItems);
+
     const { error: itemsError } = await supabase
       .from('order_items')
       .insert(orderItems)
 
     if (itemsError) {
+      console.error('Order items insertion error:', itemsError);
+      console.error('Items error details:', JSON.stringify(itemsError, null, 2));
       // Rollback: delete the order if items insertion fails
+      console.log('Rolling back order creation...');
       await supabase.from('orders').delete().eq('id', order.id)
       throw itemsError
     }
+    console.log('Order items inserted successfully');
 
     return { data: order, error: null }
   } catch (error: unknown) {
+    console.error('CreateOrder exception caught:', error);
+    console.error('Exception details:', JSON.stringify(error, null, 2));
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     
     // Check if it's a table not found error
