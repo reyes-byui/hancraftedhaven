@@ -10,7 +10,8 @@ import {
   updateCartItemQuantity,
   removeFromCart,
   checkoutCart,
-  type CartItemWithProduct 
+  type CartItemWithProduct,
+  type Product 
 } from "@/lib/supabase";
 
 export default function ShoppingCartPage() {
@@ -112,7 +113,7 @@ export default function ShoppingCartPage() {
     }, 0);
   };
 
-  const formatPrice = (product: any) => {
+  const formatPrice = (product: Product) => {
     const hasDiscount = product.discount_percentage && product.discount_percentage > 0;
     const finalPrice = product.discounted_price || product.price;
 

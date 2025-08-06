@@ -10,7 +10,8 @@ import {
   removeFromFavorites,
   createOrder,
   type FavoriteWithProduct,
-  type CreateOrderData
+  type CreateOrderData,
+  type Product
 } from "@/lib/supabase";
 
 export default function FavoritesPage() {
@@ -108,7 +109,7 @@ export default function FavoritesPage() {
     }
   };
 
-  const formatPrice = (product: any) => {
+  const formatPrice = (product: Product) => {
     const hasDiscount = product.discount_percentage && product.discount_percentage > 0;
     const finalPrice = product.discounted_price || product.price;
 

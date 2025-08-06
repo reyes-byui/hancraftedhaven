@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getCurrentUserWithProfile, updateCustomerProfile } from "@/lib/supabase";
+import { getCurrentUserWithProfile, updateCustomerProfile, type CustomerProfile } from "@/lib/supabase";
 
 export default function CustomerProfilePage() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({

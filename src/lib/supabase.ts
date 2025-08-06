@@ -5,6 +5,23 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+// Function to handle auth errors and clear corrupted tokens
+export async function handleAuthError(error: any) {
+  if (error?.message?.includes('Invalid Refresh Token') || 
+      error?.message?.includes('Refresh Token Not Found') ||
+      error?.message?.includes('refresh_token_not_found')) {
+    console.log('Detected invalid refresh token, clearing auth state...')
+    await supabase.auth.signOut()
+    // Clear any local storage items related to auth
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('supabase.auth.token')
+      localStorage.removeItem('sb-' + supabaseUrl.split('//')[1].split('.')[0] + '-auth-token')
+    }
+    return true // Indicates token was cleared
+  }
+  return false
+}
+
 // Auth types
 export type AuthError = {
   message: string
@@ -644,6 +661,8 @@ export async function signInCustomer(email: string, password: string) {
     })
 
     if (error) {
+      // Handle refresh token errors
+      await handleAuthError(error)
       throw error
     }
 
@@ -670,6 +689,8 @@ export async function signInSeller(email: string, password: string) {
     })
 
     if (error) {
+      // Handle refresh token errors
+      await handleAuthError(error)
       throw error
     }
 
@@ -722,8 +743,17 @@ export async function getCurrentUserWithProfile() {
   try {
     const { data: { user }, error } = await supabase.auth.getUser()
     
-    if (error || !user) {
-      return { user: null, profile: null, error: error?.message || 'No user found' }
+    if (error) {
+      // Handle refresh token errors
+      const wasTokenCleared = await handleAuthError(error)
+      if (wasTokenCleared) {
+        return { user: null, profile: null, error: 'Session expired. Please sign in again.' }
+      }
+      return { user: null, profile: null, error: error?.message || 'Authentication error' }
+    }
+    
+    if (!user) {
+      return { user: null, profile: null, error: 'No user found' }
     }
 
     // Determine user type from auth metadata
@@ -1002,6 +1032,7 @@ export async function createOrder(orderData: CreateOrderData): Promise<{ data: O
       order_id: order.id,
       product_id: item.product_id,
       seller_id: item.seller_id,
+      customer_id: user.id, // Add customer_id to avoid circular RLS dependency
       product_name: item.product_name,
       product_price: item.product_price,
       quantity: item.quantity,

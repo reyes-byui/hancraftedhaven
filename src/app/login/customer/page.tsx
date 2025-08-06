@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { signInCustomer } from "@/lib/supabase";
+import { signInCustomer, handleAuthError } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import MainHeader from "@/components/MainHeader";
 
@@ -31,6 +31,17 @@ export default function CustomerLoginPage() {
       setError(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const clearAuthState = async () => {
+    try {
+      await handleAuthError({ message: 'Manual clear' });
+      setError("");
+      alert('Auth state cleared! You can now try signing in again.');
+      window.location.reload();
+    } catch (err) {
+      console.error('Error clearing auth state:', err);
     }
   };
 
@@ -80,6 +91,17 @@ export default function CustomerLoginPage() {
             {loading ? "Signing In..." : "Sign In"}
           </button>
         </form>
+        
+        {error && error.includes('Invalid Refresh Token') && (
+          <div className="mt-4 text-center">
+            <button 
+              onClick={clearAuthState}
+              className="bg-red-500 hover:bg-red-600 text-white text-sm rounded px-4 py-2 transition-colors"
+            >
+              Clear Auth State & Retry
+            </button>
+          </div>
+        )}
         
         <div className="flex justify-between mt-4 text-sm">
           <Link href="/register/customer" className="text-[#8d6748] hover:underline">Create customer account</Link>
