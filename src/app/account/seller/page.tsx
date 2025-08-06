@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getCurrentUserWithProfile, getSellerProducts, getSellerOrders, updateOrderStatus, type Product, type OrderItem, type Order } from "@/lib/supabase";
+import { getCurrentUserWithProfile, getSellerProducts, getSellerOrders, updateOrderItemStatus, type Product, type OrderItem, type Order } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import AddProductModal from "@/components/AddProductModal";
 import ProductsList from "@/components/ProductsList";
@@ -27,7 +27,7 @@ export default function SellerDashboard() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders'>('overview');
-  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [updatingOrderItemId, setUpdatingOrderItemId] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -90,18 +90,18 @@ export default function SellerDashboard() {
 
   const activeProducts = products.filter(p => p.is_active);
   
-  // Calculate revenue from confirmed/delivered orders only
+  // Calculate revenue from confirmed/delivered order items only
   const totalRevenue = orders.reduce((sum, orderItem) => {
-    // Only count revenue from delivered orders
-    if (orderItem.order.status === 'delivered') {
+    // Only count revenue from delivered individual items
+    if (orderItem.status === 'delivered') {
       return sum + orderItem.subtotal;
     }
     return sum;
   }, 0);
 
-  // Calculate pending revenue (from non-cancelled orders)
+  // Calculate pending revenue (from non-cancelled individual items)
   const pendingRevenue = orders.reduce((sum, orderItem) => {
-    if (orderItem.order.status !== 'delivered' && orderItem.order.status !== 'cancelled') {
+    if (orderItem.status !== 'delivered' && orderItem.status !== 'cancelled') {
       return sum + orderItem.subtotal;
     }
     return sum;
@@ -111,24 +111,24 @@ export default function SellerDashboard() {
   const uniqueOrders = new Set(orders.map(item => item.order.id));
   const totalOrdersCount = uniqueOrders.size;
 
-  // Handle order status updates
-  const handleStatusUpdate = async (orderId: string, newStatus: Order['status']) => {
-    setUpdatingOrderId(orderId);
+  // Handle order item status updates (NEW - individual items)
+  const handleItemStatusUpdate = async (orderItemId: string, newStatus: OrderItem['status']) => {
+    setUpdatingOrderItemId(orderItemId);
     try {
-      const { error } = await updateOrderStatus(orderId, newStatus);
+      const { error } = await updateOrderItemStatus(orderItemId, newStatus);
       if (error) {
-        alert('Error updating order status: ' + error);
+        alert('Error updating item status: ' + error);
       } else {
         // Reload orders to reflect the change
         await loadOrders();
         // Show success message
-        alert(`Order status updated to: ${newStatus}`);
+        alert(`Item status updated to: ${newStatus}`);
       }
     } catch (error) {
-      console.error('Error updating order status:', error);
-      alert('Error updating order status. Please try again.');
+      console.error('Error updating item status:', error);
+      alert('Error updating item status. Please try again.');
     } finally {
-      setUpdatingOrderId(null);
+      setUpdatingOrderItemId(null);
     }
   };
 
@@ -400,15 +400,15 @@ export default function SellerDashboard() {
                               ${orderItem.subtotal.toFixed(2)}
                             </div>
                             <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                              !orderItem.order ? 'bg-gray-100 text-gray-800' :
-                              orderItem.order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              orderItem.order.status === 'processing' ? 'bg-blue-100 text-blue-800' :
-                              orderItem.order.status === 'shipped' ? 'bg-purple-100 text-purple-800' :
-                              orderItem.order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                              !orderItem.status ? 'bg-gray-100 text-gray-800' :
+                              orderItem.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              orderItem.status === 'processing' ? 'bg-blue-100 text-blue-800' :
+                              orderItem.status === 'shipped' ? 'bg-purple-100 text-purple-800' :
+                              orderItem.status === 'delivered' ? 'bg-green-100 text-green-800' :
                               'bg-red-100 text-red-800'
                             }`}>
-                              {!orderItem.order ? 'Unknown' : 
-                                orderItem.order.status.charAt(0).toUpperCase() + orderItem.order.status.slice(1)
+                              {!orderItem.status ? 'Unknown' : 
+                                orderItem.status.charAt(0).toUpperCase() + orderItem.status.slice(1)
                               }
                             </span>
                           </div>
@@ -418,46 +418,46 @@ export default function SellerDashboard() {
                         {orderItem.order && (
                           <div className="mt-4 pt-4 border-t border-gray-200">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-[#4d5c3a]">Update Order Status:</span>
+                              <span className="text-sm font-medium text-[#4d5c3a]">Update Item Status:</span>
                               <div className="flex gap-2">
-                                {orderItem.order.status === 'pending' && (
+                                {orderItem.status === 'pending' && (
                                   <>
                                     <button
-                                      onClick={() => handleStatusUpdate(orderItem.order.id, 'processing')}
-                                      disabled={updatingOrderId === orderItem.order.id}
+                                      onClick={() => handleItemStatusUpdate(orderItem.id, 'processing')}
+                                      disabled={updatingOrderItemId === orderItem.id}
                                       className="px-3 py-1 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white text-xs rounded transition-colors"
                                     >
-                                      {updatingOrderId === orderItem.order.id ? '...' : 'Accept Order'}
+                                      {updatingOrderItemId === orderItem.id ? '...' : 'Accept Item'}
                                     </button>
                                     <button
-                                      onClick={() => handleStatusUpdate(orderItem.order.id, 'cancelled')}
-                                      disabled={updatingOrderId === orderItem.order.id}
+                                      onClick={() => handleItemStatusUpdate(orderItem.id, 'cancelled')}
+                                      disabled={updatingOrderItemId === orderItem.id}
                                       className="px-3 py-1 bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white text-xs rounded transition-colors"
                                     >
-                                      {updatingOrderId === orderItem.order.id ? '...' : 'Cancel'}
+                                      {updatingOrderItemId === orderItem.id ? '...' : 'Decline Item'}
                                     </button>
                                   </>
                                 )}
-                                {orderItem.order.status === 'processing' && (
+                                {orderItem.status === 'processing' && (
                                   <button
-                                    onClick={() => handleStatusUpdate(orderItem.order.id, 'shipped')}
-                                    disabled={updatingOrderId === orderItem.order.id}
+                                    onClick={() => handleItemStatusUpdate(orderItem.id, 'shipped')}
+                                    disabled={updatingOrderItemId === orderItem.id}
                                     className="px-3 py-1 bg-purple-500 hover:bg-purple-600 disabled:bg-purple-300 text-white text-xs rounded transition-colors"
                                   >
-                                    {updatingOrderId === orderItem.order.id ? '...' : 'Mark as Shipped'}
+                                    {updatingOrderItemId === orderItem.id ? '...' : 'Mark as Shipped'}
                                   </button>
                                 )}
-                                {orderItem.order.status === 'shipped' && (
+                                {orderItem.status === 'shipped' && (
                                   <button
-                                    onClick={() => handleStatusUpdate(orderItem.order.id, 'delivered')}
-                                    disabled={updatingOrderId === orderItem.order.id}
+                                    onClick={() => handleItemStatusUpdate(orderItem.id, 'delivered')}
+                                    disabled={updatingOrderItemId === orderItem.id}
                                     className="px-3 py-1 bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white text-xs rounded transition-colors"
                                   >
-                                    {updatingOrderId === orderItem.order.id ? '...' : 'Mark as Delivered'}
+                                    {updatingOrderItemId === orderItem.id ? '...' : 'Mark as Delivered'}
                                   </button>
                                 )}
-                                {(['delivered', 'cancelled'].includes(orderItem.order.status)) && (
-                                  <span className="text-xs text-gray-500 italic">Order Complete</span>
+                                {(['delivered', 'cancelled'].includes(orderItem.status)) && (
+                                  <span className="text-xs text-gray-500 italic">Item Complete</span>
                                 )}
                               </div>
                             </div>

@@ -86,6 +86,29 @@ export default function OrderHistoryPage() {
     }
   };
 
+  // Helper functions for individual item status display
+  const getItemStatusColor = (status: OrderItem['status']) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'processing': return 'bg-blue-100 text-blue-800';
+      case 'shipped': return 'bg-purple-100 text-purple-800';
+      case 'delivered': return 'bg-green-100 text-green-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getItemStatusText = (status: OrderItem['status']) => {
+    switch (status) {
+      case 'pending': return 'Order Pending';
+      case 'processing': return 'Order Processing';
+      case 'shipped': return 'Order Shipped';
+      case 'delivered': return 'Order Delivered';
+      case 'cancelled': return 'Order Declined';
+      default: return 'Unknown Status';
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f5f2]">
@@ -176,14 +199,19 @@ export default function OrderHistoryPage() {
                         <div className="space-y-3">
                           <h4 className="font-medium text-[#8d6748] mb-3">Items Ordered:</h4>
                           {orderItems[order.id].map((item) => (
-                            <div key={item.id} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
-                              <div>
-                                <p className="font-medium text-[#8d6748]">{item.product_name}</p>
-                                <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-medium">${item.subtotal.toFixed(2)}</p>
-                                <p className="text-sm text-gray-600">${item.product_price.toFixed(2)} each</p>
+                            <div key={item.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                              <div className="flex justify-between items-start">
+                                <div className="flex-1">
+                                  <p className="font-medium text-[#8d6748] text-lg">{item.product_name}</p>
+                                  <p className="text-sm text-gray-600 mt-1">Quantity: {item.quantity}</p>
+                                  <p className="text-lg font-bold text-[#8d6748] mt-2">${item.subtotal.toFixed(2)}</p>
+                                  <p className="text-sm text-gray-600">${item.product_price.toFixed(2)} each</p>
+                                </div>
+                                <div className="text-right ml-4">
+                                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getItemStatusColor(item.status || 'pending')}`}>
+                                    {getItemStatusText(item.status || 'pending')}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           ))}

@@ -148,10 +148,12 @@ export type OrderItem = {
   order_id: string
   product_id: string
   seller_id: string
+  customer_id?: string // Added for RLS policies
   product_name: string
   product_price: number
   quantity: number
   subtotal: number
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
   created_at: string
 }
 
@@ -1053,7 +1055,8 @@ export async function createOrder(orderData: CreateOrderData): Promise<{ data: O
       product_name: item.product_name,
       product_price: item.product_price,
       quantity: item.quantity,
-      subtotal: item.subtotal
+      subtotal: item.subtotal,
+      status: 'pending' as const // Set initial status for new order items
     }))
 
     console.log('Attempting to insert order items:', orderItems);
@@ -1207,6 +1210,70 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
       return { data: null, error: (error as { details: string }).details }
     }
     return { data: null, error: error instanceof Error ? error.message : 'Failed to update order status. Please check your permissions.' }
+  }
+}
+
+// Update individual order item status (NEW FUNCTION)
+export async function updateOrderItemStatus(orderItemId: string, status: OrderItem['status']): Promise<{ data: OrderItem | null, error: string | null }> {
+  try {
+    console.log(`Attempting to update order item ${orderItemId} to status: ${status}`);
+    
+    // First check if the order item exists and belongs to the current user (seller)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { data: null, error: 'Not authenticated' }
+    }
+    
+    // Verify the order item exists and belongs to this seller
+    const { data: existingItem, error: checkError } = await supabase
+      .from('order_items')
+      .select('id, seller_id, status')
+      .eq('id', orderItemId)
+      .eq('seller_id', user.id)
+      .maybeSingle()
+
+    if (checkError) {
+      console.error('Error checking order item:', checkError);
+      return { data: null, error: `Error checking order item: ${checkError.message}` }
+    }
+
+    if (!existingItem) {
+      console.error('Order item not found or not owned by seller');
+      return { data: null, error: 'Order item not found or you do not have permission to update it' }
+    }
+
+    console.log('Order item found, current status:', existingItem.status, 'updating to:', status);
+
+    // Now update the order item status
+    const { data, error } = await supabase
+      .from('order_items')
+      .update({ status })
+      .eq('id', orderItemId)
+      .eq('seller_id', user.id) // Double-check seller ownership
+      .select()
+      .maybeSingle() // Use maybeSingle instead of single to handle edge cases
+
+    if (error) {
+      console.error('Supabase error updating order item status:', error);
+      return { data: null, error: `Database error: ${error.message}` }
+    }
+
+    if (!data) {
+      console.error('No data returned after update');
+      return { data: null, error: 'Update failed - no rows affected. Check permissions.' }
+    }
+
+    console.log('Order item status updated successfully:', data);
+    return { data, error: null }
+  } catch (error: unknown) {
+    console.error('Error in updateOrderItemStatus:', error);
+    if (error && typeof error === 'object' && 'message' in error) {
+      return { data: null, error: (error as { message: string }).message }
+    }
+    if (error && typeof error === 'object' && 'details' in error) {
+      return { data: null, error: (error as { details: string }).details }
+    }
+    return { data: null, error: error instanceof Error ? error.message : 'Failed to update order item status. Please check your permissions.' }
   }
 }
 
