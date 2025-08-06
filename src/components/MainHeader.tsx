@@ -61,7 +61,7 @@ export default function MainHeader() {
   };
 
   return (
-    <header className="w-full bg-white shadow-sm">
+    <header className="w-full bg-white shadow-sm relative z-40">
       {/* Desktop: Two-row layout with better spacing */}
       <div className="hidden md:block px-4 sm:px-8 py-4 sm:py-6">
         {/* Top Row: Logo, Title, and User Info */}
@@ -167,8 +167,9 @@ export default function MainHeader() {
       </div>
 
       {/* Mobile Menu */}
-      <div className={`md:hidden bg-white border-t border-gray-200 transition-all duration-300 ease-in-out ${isMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
-        <nav className="flex flex-col items-center px-4 py-4 space-y-4">
+      <div className={`md:hidden absolute top-full left-0 right-0 bg-white border-t border-b border-gray-300 shadow-xl transition-all duration-300 ease-in-out z-50 ${isMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`} style={{backgroundColor: '#ffffff', backdropFilter: 'blur(8px)'}}>
+        <div className="bg-white">
+          <nav className="flex flex-col items-center px-4 py-4 space-y-4 bg-white">
           <Link 
             href="/" 
             className="text-[#8d6748] hover:underline text-lg font-medium py-2 text-center"
@@ -257,6 +258,7 @@ export default function MainHeader() {
             </Link>
           )}
         </nav>
+        </div>
       </div>
     </header>
   );

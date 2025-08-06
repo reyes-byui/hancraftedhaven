@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getCurrentUserWithProfile, signOut } from "@/lib/supabase";
+import { getCurrentUserWithProfile } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import MainHeader from "@/components/MainHeader";
 
 export default function CustomerDashboard() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
@@ -33,11 +34,6 @@ export default function CustomerDashboard() {
     loadUser();
   }, [router]);
 
-  const handleSignOut = async () => {
-    await signOut();
-    router.push("/");
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f5f2]">
@@ -48,30 +44,8 @@ export default function CustomerDashboard() {
 
   return (
     <div className="min-h-screen bg-[#f8f5f2]">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <Link href="/" className="text-2xl font-serif font-bold text-[#8d6748]">
-              Handcrafted Haven
-            </Link>
-            <div className="flex items-center gap-4">
-              <Link href="/settings" className="text-[#8d6748] hover:underline">
-                Settings
-              </Link>
-              <span className="text-[#4d5c3a]">
-                Welcome, {profile?.first_name ? `${profile.first_name} ${profile.last_name}` : user?.email}
-              </span>
-              <button
-                onClick={handleSignOut}
-                className="bg-[#a3b18a] hover:bg-[#8d6748] text-white px-4 py-2 rounded-full transition-colors"
-              >
-                Sign Out
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Use consistent header */}
+      <MainHeader />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

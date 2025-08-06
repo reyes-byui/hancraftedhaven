@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useEffect, useState } from "react";
-import { getCurrentUserWithProfile, signOut, getSellerProducts, getSellerOrders, type Product, type OrderItem, type Order } from "@/lib/supabase";
+import { getCurrentUserWithProfile, getSellerProducts, getSellerOrders, updateOrderStatus, type Product, type OrderItem, type Order } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import AddProductModal from "@/components/AddProductModal";
 import ProductsList from "@/components/ProductsList";
+import MainHeader from "@/components/MainHeader";
 
 export default function SellerDashboard() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
@@ -83,18 +83,48 @@ export default function SellerDashboard() {
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    router.push("/");
-  };
-
   const handleProductAdded = () => {
     loadProducts();
   };
 
   const activeProducts = products.filter(p => p.is_active);
-  // Calculate revenue from orders
-  const totalRevenue = orders.reduce((sum, orderItem) => sum + orderItem.subtotal, 0);
+  
+  // Calculate revenue from confirmed/delivered orders only
+  const totalRevenue = orders.reduce((sum, orderItem) => {
+    // Only count revenue from delivered orders
+    if (orderItem.order.status === 'delivered') {
+      return sum + orderItem.subtotal;
+    }
+    return sum;
+  }, 0);
+
+  // Calculate pending revenue (from non-cancelled orders)
+  const pendingRevenue = orders.reduce((sum, orderItem) => {
+    if (orderItem.order.status !== 'delivered' && orderItem.order.status !== 'cancelled') {
+      return sum + orderItem.subtotal;
+    }
+    return sum;
+  }, 0);
+
+  // Count total orders
+  const uniqueOrders = new Set(orders.map(item => item.order.id));
+  const totalOrdersCount = uniqueOrders.size;
+
+  // Handle order status updates
+  const handleStatusUpdate = async (orderId: string, newStatus: Order['status']) => {
+    try {
+      const { error } = await updateOrderStatus(orderId, newStatus);
+      if (error) {
+        alert('Error updating order status: ' + error);
+      } else {
+        // Reload orders to reflect the change
+        await loadOrders();
+      }
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      alert('Error updating order status. Please try again.');
+    }
+  };
 
   if (loading) {
     return (
@@ -106,42 +136,8 @@ export default function SellerDashboard() {
 
   return (
     <div className="min-h-screen bg-[#f8f5f2]">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <Link href="/" className="flex items-center gap-3">
-              <Image 
-                src="/logo.png" 
-                alt="Handcrafted Haven Logo" 
-                width={48} 
-                height={48} 
-                className="w-12 h-12"
-              />
-              <span className="text-2xl font-serif font-bold text-[#8d6748]">
-                Handcrafted Haven
-              </span>
-            </Link>
-            <div className="flex items-center gap-4">
-              <Link href="/settings" className="text-[#8d6748] hover:underline">
-                Settings
-              </Link>
-              <span className="text-[#4d5c3a]">
-                Welcome, {profile?.first_name ? `${profile.first_name} ${profile.last_name}` : user?.email}
-                {profile?.business_name && (
-                  <span className="block text-sm text-gray-600">{profile.business_name}</span>
-                )}
-              </span>
-              <button
-                onClick={handleSignOut}
-                className="bg-[#bfa76a] hover:bg-[#8d6748] text-white px-4 py-2 rounded-full transition-colors"
-              >
-                Sign Out
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Use consistent header */}
+      <MainHeader />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -151,7 +147,7 @@ export default function SellerDashboard() {
             <h1 className="text-3xl font-serif text-[#8d6748] font-bold mb-4">Seller Dashboard</h1>
             
             {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-[#a3b18a] text-white p-4 rounded-lg text-center">
                 <h4 className="text-lg font-semibold">Total Products</h4>
                 <p className="text-2xl font-bold">{products.length}</p>
@@ -163,8 +159,22 @@ export default function SellerDashboard() {
               <div className="bg-[#8d6748] text-white p-4 rounded-lg text-center">
                 <h4 className="text-lg font-semibold">Revenue</h4>
                 <p className="text-2xl font-bold">${totalRevenue.toFixed(2)}</p>
+                <p className="text-sm opacity-90 mt-1">Delivered orders only</p>
               </div>
               <div className="bg-[#4d5c3a] text-white p-4 rounded-lg text-center">
+                <h4 className="text-lg font-semibold">Total Orders</h4>
+                <p className="text-2xl font-bold">{totalOrdersCount}</p>
+              </div>
+            </div>
+            
+            {/* Additional Stats Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div className="bg-[#588157] text-white p-4 rounded-lg text-center">
+                <h4 className="text-lg font-semibold">Pending Revenue</h4>
+                <p className="text-2xl font-bold">${pendingRevenue.toFixed(2)}</p>
+                <p className="text-sm opacity-90 mt-1">Orders in progress</p>
+              </div>
+              <div className="bg-[#3a5a40] text-white p-4 rounded-lg text-center">
                 <h4 className="text-lg font-semibold">Categories</h4>
                 <p className="text-2xl font-bold">{new Set(products.map(p => p.category)).size}</p>
               </div>
@@ -397,6 +407,52 @@ export default function SellerDashboard() {
                             </span>
                           </div>
                         </div>
+
+                        {/* Order Status Management */}
+                        {orderItem.order && (
+                          <div className="mt-4 pt-4 border-t border-gray-200">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-[#4d5c3a]">Update Order Status:</span>
+                              <div className="flex gap-2">
+                                {orderItem.order.status === 'pending' && (
+                                  <>
+                                    <button
+                                      onClick={() => handleStatusUpdate(orderItem.order.id, 'processing')}
+                                      className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded transition-colors"
+                                    >
+                                      Accept Order
+                                    </button>
+                                    <button
+                                      onClick={() => handleStatusUpdate(orderItem.order.id, 'cancelled')}
+                                      className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded transition-colors"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </>
+                                )}
+                                {orderItem.order.status === 'processing' && (
+                                  <button
+                                    onClick={() => handleStatusUpdate(orderItem.order.id, 'shipped')}
+                                    className="px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded transition-colors"
+                                  >
+                                    Mark as Shipped
+                                  </button>
+                                )}
+                                {orderItem.order.status === 'shipped' && (
+                                  <button
+                                    onClick={() => handleStatusUpdate(orderItem.order.id, 'delivered')}
+                                    className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded transition-colors"
+                                  >
+                                    Mark as Delivered
+                                  </button>
+                                )}
+                                {(['delivered', 'cancelled'].includes(orderItem.order.status)) && (
+                                  <span className="text-xs text-gray-500 italic">Order Complete</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                         
                         <div className="border-t border-gray-200 pt-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
