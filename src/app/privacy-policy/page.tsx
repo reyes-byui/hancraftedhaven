@@ -51,7 +51,7 @@ export default function PrivacyPolicyPage() {
               <li>Our site may contain links to third-party websites. We are not responsible for their privacy practices. Please review their policies before providing information.</li>
             </ul>
 
-            <h2 className="text-xl font-semibold text-[#8d6748] mt-8 mb-4">6. Children's Privacy:</h2>
+            <h2 className="text-xl font-semibold text-[#8d6748] mt-8 mb-4">6. Children&apos;s Privacy:</h2>
             <ul className="list-disc pl-6 mb-6">
               <li>The site is not intended for children under 13. We do not knowingly collect personal information from children.</li>
             </ul>

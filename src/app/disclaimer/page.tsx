@@ -37,7 +37,7 @@ export default function DisclaimerPage() {
 
             <h2 className="text-xl font-semibold text-[#8d6748] mt-8 mb-4">4. No Warranties:</h2>
             <ul className="list-disc pl-6 mb-6">
-              <li>The Site is provided "as is" without warranties of any kind, express or implied. We do not warrant that the Site will be error-free, secure, or continuously available.</li>
+              <li>The Site is provided &quot;as is&quot; without warranties of any kind, express or implied. We do not warrant that the Site will be error-free, secure, or continuously available.</li>
             </ul>
 
             <h2 className="text-xl font-semibold text-[#8d6748] mt-8 mb-4">5. Limitation of Liability:</h2>

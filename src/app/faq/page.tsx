@@ -24,7 +24,7 @@ export default function FAQPage() {
             <div className="border-b border-[#e7d7c1] pb-6">
               <h2 className="text-xl font-semibold text-[#8d6748] mb-3">2. How do I create an account?</h2>
               <p className="text-[#4d5c3a]">
-                Click the Register link in the navigation menu and follow the instructions to sign up. You'll need a valid email address.
+                Click the Register link in the navigation menu and follow the instructions to sign up. You&apos;ll need a valid email address.
               </p>
             </div>
 
@@ -66,7 +66,7 @@ export default function FAQPage() {
             <div>
               <h2 className="text-xl font-semibold text-[#8d6748] mb-3">8. Who do I contact for support or questions?</h2>
               <p className="text-[#4d5c3a]">
-                Visit the <Link href="/contact" className="text-[#8d6748] hover:underline">Contact page</Link> to reach our support team. We're here to help!
+                Visit the <Link href="/contact" className="text-[#8d6748] hover:underline">Contact page</Link> to reach our support team. We&apos;re here to help!
               </p>
             </div>
           </div>

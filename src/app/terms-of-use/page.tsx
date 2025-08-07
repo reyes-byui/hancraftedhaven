@@ -15,7 +15,7 @@ export default function TermsOfUsePage() {
           
           <div className="prose prose-lg max-w-none text-[#4d5c3a]">
             <p className="mb-6">
-              By accessing and using Handcrafted Haven ("the Site"), you agree to comply with and be bound by the following terms and conditions. Please read them carefully before using the Site.
+              By accessing and using Handcrafted Haven (&quot;the Site&quot;), you agree to comply with and be bound by the following terms and conditions. Please read them carefully before using the Site.
             </p>
 
             <h2 className="text-xl font-semibold text-[#8d6748] mt-8 mb-4">1. Use of Site:</h2>
@@ -78,7 +78,7 @@ export default function TermsOfUsePage() {
 
             <h2 className="text-xl font-semibold text-[#8d6748] mt-8 mb-4">10. Disclaimer and Limitation of Liability:</h2>
             <ul className="list-disc pl-6 mb-6">
-              <li>The Site is provided "as is" without warranties of any kind. We do not guarantee uninterrupted service or error-free operation.</li>
+              <li>The Site is provided &quot;as is&quot; without warranties of any kind. We do not guarantee uninterrupted service or error-free operation.</li>
               <li>Handcrafted Haven is not responsible for any damages, losses, or claims arising from your use of the Site.</li>
             </ul>
 
