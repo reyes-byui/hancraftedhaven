@@ -387,10 +387,18 @@ export default function ListingsPage() {
 
                   {/* Stock Info */}
                   <div className="mb-4">
-                    <span className="text-xs text-gray-500">
-                      {product.stock_quantity > 0 
-                        ? `${product.stock_quantity} in stock`
-                        : 'Out of stock'
+                    <span className={`text-xs font-medium ${
+                      product.stock_quantity === 0 
+                        ? 'text-red-600' 
+                        : product.stock_quantity <= 5 
+                        ? 'text-orange-600' 
+                        : 'text-green-600'
+                    }`}>
+                      {product.stock_quantity === 0 
+                        ? 'Out of stock'
+                        : product.stock_quantity <= 5
+                        ? `Only ${product.stock_quantity} left!`
+                        : `${product.stock_quantity} in stock`
                       }
                     </span>
                   </div>

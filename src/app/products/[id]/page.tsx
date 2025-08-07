@@ -143,8 +143,26 @@ export default function ProductDetailPage() {
               </span>
             </div>
 
-            <div className="text-3xl font-bold text-[#e07a5f] mb-6">
+            <div className="text-3xl font-bold text-[#e07a5f] mb-4">
               ${product.price.toFixed(2)}
+            </div>
+
+            {/* Stock Information */}
+            <div className="mb-6">
+              <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                product.stock_quantity === 0 
+                  ? 'bg-red-100 text-red-800' 
+                  : product.stock_quantity <= 5 
+                  ? 'bg-orange-100 text-orange-800' 
+                  : 'bg-green-100 text-green-800'
+              }`}>
+                {product.stock_quantity === 0 
+                  ? '❌ Out of stock'
+                  : product.stock_quantity <= 5
+                  ? `⚠️ Only ${product.stock_quantity} left in stock`
+                  : `✅ ${product.stock_quantity} available`
+                }
+              </div>
             </div>
 
             {product.description && (

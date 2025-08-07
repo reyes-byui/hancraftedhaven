@@ -1068,6 +1068,81 @@ export async function createOrder(orderData: CreateOrderData): Promise<{ data: O
     }
     console.log('Order created successfully:', order);
 
+    // Use SQL function to check and update stock quantities atomically
+    console.log('Checking and updating stock availability...');
+    
+    const orderItemsForStock = orderData.items.map(item => ({
+      product_id: item.product_id,
+      product_name: item.product_name,
+      quantity: item.quantity
+    }));
+
+    console.log('Order items for stock update:', orderItemsForStock);
+
+    const { data: stockResult, error: stockError } = await supabase
+      .rpc('update_stock_for_order', {
+        order_items_data: orderItemsForStock
+      })
+
+    console.log('Stock update RPC result:', { stockResult, stockError });
+
+    // Check if the RPC function exists, if not fall back to direct updates
+    if (stockError && stockError.code === '42883') {
+      console.log('SQL function not found, falling back to direct stock updates...');
+      
+      // Fallback: Direct stock updates (temporary solution)
+      for (const item of orderData.items) {
+        // Check stock first
+        const { data: product, error: productError } = await supabase
+          .from('products')
+          .select('stock_quantity, name')
+          .eq('id', item.product_id)
+          .single()
+
+        if (productError) {
+          console.error('Error fetching product for stock check:', productError);
+          await supabase.from('orders').delete().eq('id', order.id)
+          return { data: null, error: `Product not found: ${item.product_name}` }
+        }
+
+        if (product.stock_quantity < item.quantity) {
+          console.log(`Insufficient stock for ${product.name}: ${product.stock_quantity} available, ${item.quantity} requested`);
+          await supabase.from('orders').delete().eq('id', order.id)
+          return { data: null, error: `Insufficient stock for ${product.name}. Only ${product.stock_quantity} available.` }
+        }
+
+        // Update stock
+        const newStock = product.stock_quantity - item.quantity;
+        const { error: updateError } = await supabase
+          .from('products')
+          .update({ 
+            stock_quantity: newStock,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', item.product_id)
+
+        if (updateError) {
+          console.error('Error updating stock:', updateError);
+          await supabase.from('orders').delete().eq('id', order.id)
+          return { data: null, error: `Failed to update stock for ${item.product_name}` }
+        }
+
+        console.log(`Stock updated for ${item.product_name}: ${product.stock_quantity} -> ${newStock}`);
+      }
+      
+      console.log('Direct stock updates completed successfully');
+    } else if (stockError || !stockResult?.[0]?.success) {
+      console.error('Stock update failed:', stockError || stockResult?.[0]?.message);
+      // Rollback: delete the order
+      await supabase.from('orders').delete().eq('id', order.id)
+      return { 
+        data: null, 
+        error: stockResult?.[0]?.message || stockError?.message || 'Failed to update stock quantities' 
+      }
+    } else {
+      console.log('Stock quantities updated successfully via SQL function:', stockResult[0].message);
+    }
+
     // Insert order items
     const orderItems = orderData.items.map(item => ({
       order_id: order.id,
@@ -1299,6 +1374,85 @@ export async function updateOrderItemStatus(orderItemId: string, status: OrderIt
   }
 }
 
+// ============ STOCK MANAGEMENT FUNCTIONS ============
+
+// Cancel order and restore stock quantities
+export async function cancelOrder(orderId: string): Promise<{ data: boolean, error: string | null }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { data: false, error: 'Not authenticated' }
+    }
+
+    // Check if user owns this order
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('id, status, customer_id')
+      .eq('id', orderId)
+      .eq('customer_id', user.id)
+      .single()
+
+    if (orderError || !order) {
+      return { data: false, error: 'Order not found or access denied' }
+    }
+
+    if (order.status === 'cancelled') {
+      return { data: false, error: 'Order is already cancelled' }
+    }
+
+    if (order.status === 'delivered') {
+      return { data: false, error: 'Cannot cancel a delivered order' }
+    }
+
+    // Use SQL function to restore stock
+    const { data: stockResult, error: stockError } = await supabase
+      .rpc('restore_stock_for_order', {
+        order_id_param: orderId
+      })
+
+    if (stockError || !stockResult?.[0]?.success) {
+      return { 
+        data: false, 
+        error: stockResult?.[0]?.message || stockError?.message || 'Failed to restore stock quantities' 
+      }
+    }
+
+    // Update order status to cancelled
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update({ status: 'cancelled' })
+      .eq('id', orderId)
+      .eq('customer_id', user.id)
+
+    if (updateError) {
+      return { data: false, error: 'Failed to cancel order: ' + updateError.message }
+    }
+
+    return { data: true, error: null }
+  } catch (error: unknown) {
+    return { data: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get stock status for a product
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getProductStockStatus(productId: string): Promise<{ data: any, error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_product_stock_status', {
+        product_id_param: productId
+      })
+
+    if (error) {
+      return { data: null, error: error.message }
+    }
+
+    return { data: data?.[0] || null, error: null }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
 // ============ FAVORITES FUNCTIONS ============
 
 // Add product to favorites
@@ -1469,7 +1623,22 @@ export async function addToCart(productId: string, quantity: number = 1): Promis
       return { data, error: null }
     }
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('AddToCart error details:', error);
+    
+    let errorMessage = 'Unknown error';
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    } else if (error && typeof error === 'object') {
+      // Handle Supabase error objects
+      if ('message' in error) {
+        errorMessage = (error as { message: string }).message;
+      } else if ('error' in error) {
+        errorMessage = (error as { error: string }).error;
+      } else {
+        errorMessage = JSON.stringify(error);
+      }
+    }
     
     if (errorMessage.includes('relation "public.cart" does not exist')) {
       return { 
