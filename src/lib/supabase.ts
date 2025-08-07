@@ -3,7 +3,27 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+})
+
+// Auto-handle auth errors globally
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'TOKEN_REFRESHED') {
+    console.log('🔄 Token refreshed successfully')
+  } else if (event === 'SIGNED_OUT') {
+    console.log('👋 User signed out')
+    // Clear any remaining auth data
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('supabase.auth.token')
+      localStorage.removeItem('sb-' + supabaseUrl.split('//')[1].split('.')[0] + '-auth-token')
+    }
+  }
+})
 
 // Function to handle auth errors and clear corrupted tokens
 export async function handleAuthError(error: { message?: string } | Error | unknown) {
@@ -12,17 +32,77 @@ export async function handleAuthError(error: { message?: string } | Error | unkn
   
   if (errorMessage.includes('Invalid Refresh Token') || 
       errorMessage.includes('Refresh Token Not Found') ||
-      errorMessage.includes('refresh_token_not_found')) {
-    console.log('Detected invalid refresh token, clearing auth state...')
-    await supabase.auth.signOut()
-    // Clear any local storage items related to auth
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('supabase.auth.token')
-      localStorage.removeItem('sb-' + supabaseUrl.split('//')[1].split('.')[0] + '-auth-token')
-    }
+      errorMessage.includes('refresh_token_not_found') ||
+      errorMessage.includes('AuthApiError') ||
+      errorMessage.includes('invalid_grant')) {
+    console.log('🚨 Detected invalid refresh token, clearing auth state...')
+    await clearAuthState()
     return true // Indicates token was cleared
   }
   return false
+}
+
+// Function to completely clear authentication state
+export async function clearAuthState() {
+  try {
+    console.log('🧹 Clearing all authentication data...')
+    
+    // Sign out from Supabase
+    await supabase.auth.signOut()
+    
+    // Clear localStorage
+    if (typeof window !== 'undefined') {
+      // Clear specific Supabase auth keys
+      const supabaseProjectRef = supabaseUrl.split('//')[1].split('.')[0]
+      
+      // Remove all possible auth-related keys
+      localStorage.removeItem('supabase.auth.token')
+      localStorage.removeItem(`sb-${supabaseProjectRef}-auth-token`)
+      localStorage.removeItem(`sb-${supabaseProjectRef}-auth-token-code-verifier`)
+      
+      // Also check for any other auth keys and remove them
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes('supabase') || key.includes('auth') || key.includes('sb-')) {
+          localStorage.removeItem(key)
+        }
+      })
+      
+      // Clear sessionStorage as well
+      sessionStorage.clear()
+    }
+    
+    console.log('✅ Authentication state cleared successfully')
+    
+    // Redirect to login page if we're not already there
+    if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+      window.location.href = '/login'
+    }
+  } catch (error) {
+    console.error('❌ Error clearing auth state:', error)
+  }
+}
+
+// Quick recovery function for auth errors
+export async function recoverFromAuthError() {
+  console.log('🔄 Attempting to recover from auth error...')
+  
+  try {
+    // First try to refresh the session
+    const { data, error } = await supabase.auth.refreshSession()
+    
+    if (error || !data.session) {
+      console.log('❌ Session refresh failed, clearing auth state...')
+      await clearAuthState()
+      return false
+    }
+    
+    console.log('✅ Successfully recovered from auth error')
+    return true
+  } catch (error) {
+    console.error('❌ Recovery failed:', error)
+    await clearAuthState()
+    return false
+  }
 }
 
 // Auth types
@@ -770,12 +850,23 @@ export async function getCurrentUserWithProfile() {
     const { data: { user }, error } = await supabase.auth.getUser()
     
     if (error) {
-      // Handle refresh token errors
+      // Handle refresh token errors with enhanced error detection
       const wasTokenCleared = await handleAuthError(error)
       if (wasTokenCleared) {
         return { user: null, profile: null, error: 'Session expired. Please sign in again.' }
       }
-      return { user: null, profile: null, error: error?.message || 'Authentication error' }
+      
+      // Check for specific auth errors
+      const errorMessage = error?.message || ''
+      if (errorMessage.includes('AuthApiError') || 
+          errorMessage.includes('Invalid Refresh Token') ||
+          errorMessage.includes('Refresh Token Not Found')) {
+        console.log('🚨 Detected auth error in getCurrentUserWithProfile, clearing state...')
+        await clearAuthState()
+        return { user: null, profile: null, error: 'Session expired. Please sign in again.' }
+      }
+      
+      return { user: null, profile: null, error: errorMessage || 'Authentication error' }
     }
     
     if (!user) {
@@ -1068,80 +1159,34 @@ export async function createOrder(orderData: CreateOrderData): Promise<{ data: O
     }
     console.log('Order created successfully:', order);
 
-    // Use SQL function to check and update stock quantities atomically
-    console.log('Checking and updating stock availability...');
+    // Note: Stock will be deducted when seller accepts the order items
+    // For now, just check if products exist and have sufficient stock for validation
+    console.log('Validating product availability without deducting stock...');
     
-    const orderItemsForStock = orderData.items.map(item => ({
-      product_id: item.product_id,
-      product_name: item.product_name,
-      quantity: item.quantity
-    }));
+    for (const item of orderData.items) {
+      // Check if product exists and has sufficient stock
+      const { data: product, error: productError } = await supabase
+        .from('products')
+        .select('stock_quantity, name')
+        .eq('id', item.product_id)
+        .single()
 
-    console.log('Order items for stock update:', orderItemsForStock);
-
-    const { data: stockResult, error: stockError } = await supabase
-      .rpc('update_stock_for_order', {
-        order_items_data: orderItemsForStock
-      })
-
-    console.log('Stock update RPC result:', { stockResult, stockError });
-
-    // Check if the RPC function exists, if not fall back to direct updates
-    if (stockError && stockError.code === '42883') {
-      console.log('SQL function not found, falling back to direct stock updates...');
-      
-      // Fallback: Direct stock updates (temporary solution)
-      for (const item of orderData.items) {
-        // Check stock first
-        const { data: product, error: productError } = await supabase
-          .from('products')
-          .select('stock_quantity, name')
-          .eq('id', item.product_id)
-          .single()
-
-        if (productError) {
-          console.error('Error fetching product for stock check:', productError);
-          await supabase.from('orders').delete().eq('id', order.id)
-          return { data: null, error: `Product not found: ${item.product_name}` }
-        }
-
-        if (product.stock_quantity < item.quantity) {
-          console.log(`Insufficient stock for ${product.name}: ${product.stock_quantity} available, ${item.quantity} requested`);
-          await supabase.from('orders').delete().eq('id', order.id)
-          return { data: null, error: `Insufficient stock for ${product.name}. Only ${product.stock_quantity} available.` }
-        }
-
-        // Update stock
-        const newStock = product.stock_quantity - item.quantity;
-        const { error: updateError } = await supabase
-          .from('products')
-          .update({ 
-            stock_quantity: newStock,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', item.product_id)
-
-        if (updateError) {
-          console.error('Error updating stock:', updateError);
-          await supabase.from('orders').delete().eq('id', order.id)
-          return { data: null, error: `Failed to update stock for ${item.product_name}` }
-        }
-
-        console.log(`Stock updated for ${item.product_name}: ${product.stock_quantity} -> ${newStock}`);
+      if (productError) {
+        console.error('Error fetching product for validation:', productError);
+        await supabase.from('orders').delete().eq('id', order.id)
+        return { data: null, error: `Product not found: ${item.product_name}` }
       }
-      
-      console.log('Direct stock updates completed successfully');
-    } else if (stockError || !stockResult?.[0]?.success) {
-      console.error('Stock update failed:', stockError || stockResult?.[0]?.message);
-      // Rollback: delete the order
-      await supabase.from('orders').delete().eq('id', order.id)
-      return { 
-        data: null, 
-        error: stockResult?.[0]?.message || stockError?.message || 'Failed to update stock quantities' 
+
+      if (product.stock_quantity < item.quantity) {
+        console.log(`Insufficient stock for ${product.name}: ${product.stock_quantity} available, ${item.quantity} requested`);
+        await supabase.from('orders').delete().eq('id', order.id)
+        return { data: null, error: `Insufficient stock for ${product.name}. Only ${product.stock_quantity} available.` }
       }
-    } else {
-      console.log('Stock quantities updated successfully via SQL function:', stockResult[0].message);
+
+      console.log(`Stock validation passed for ${item.product_name}: ${product.stock_quantity} available, ${item.quantity} requested`);
     }
+    
+    console.log('Product availability validation completed successfully - stock will be deducted when seller accepts');
 
     // Insert order items
     const orderItems = orderData.items.map(item => ({
@@ -1313,13 +1358,16 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
 // Update individual order item status (UPDATED WITH STOCK MANAGEMENT)
 export async function updateOrderItemStatus(orderItemId: string, status: OrderItem['status']): Promise<{ data: OrderItem | null, error: string | null }> {
   try {
-    console.log(`Attempting to update order item ${orderItemId} to status: ${status}`);
+    console.log(`🔄 [STOCK DEBUG] Attempting to update order item ${orderItemId} to status: ${status}`);
     
     // First check if the order item exists and belongs to the current user (seller)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
+      console.log('❌ [STOCK DEBUG] User not authenticated');
       return { data: null, error: 'Not authenticated' }
     }
+    
+    console.log(`✅ [STOCK DEBUG] User authenticated: ${user.id}`);
     
     // Verify the order item exists and belongs to this seller
     const { data: existingItem, error: checkError } = await supabase
@@ -1330,24 +1378,24 @@ export async function updateOrderItemStatus(orderItemId: string, status: OrderIt
       .maybeSingle()
 
     if (checkError) {
-      console.error('Error checking order item:', checkError);
+      console.error('❌ [STOCK DEBUG] Error checking order item:', checkError);
       return { data: null, error: `Error checking order item: ${checkError.message}` }
     }
 
     if (!existingItem) {
-      console.error('Order item not found or not owned by seller');
+      console.error('❌ [STOCK DEBUG] Order item not found or not owned by seller');
       return { data: null, error: 'Order item not found or you do not have permission to update it' }
     }
 
-    console.log('Order item found, current status:', existingItem.status, 'updating to:', status);
+    console.log(`✅ [STOCK DEBUG] Order item found - Current status: ${existingItem.status}, Target status: ${status}, Product ID: ${existingItem.product_id}, Quantity: ${existingItem.quantity}`);
 
-    // Handle stock management for all status transitions
+    // Handle stock management for status transitions
     const oldStatus = existingItem.status;
     
-    // Case 1: When seller DECLINES order (pending -> cancelled)
-    // Need to restore stock since it was deducted when order was placed
-    if (status === 'cancelled' && oldStatus === 'pending') {
-      console.log('Seller declined order - restoring stock...');
+    // Case 1: When seller ACCEPTS order (pending → processing)
+    // Need to deduct stock since it wasn't deducted at order creation
+    if (status === 'processing' && oldStatus === 'pending') {
+      console.log('🔥 [STOCK DEBUG] CRITICAL: Seller accepted order - deducting stock...');
       
       // Get current product stock
       const { data: product, error: productError } = await supabase
@@ -1357,52 +1405,22 @@ export async function updateOrderItemStatus(orderItemId: string, status: OrderIt
         .single()
 
       if (productError) {
-        console.error('Error fetching product for stock restoration:', productError);
-        return { data: null, error: `Failed to fetch product for stock restoration: ${productError.message}` }
-      }
-
-      // Restore stock quantity (add back what was deducted)
-      const restoredStock = product.stock_quantity + existingItem.quantity;
-      const { error: stockUpdateError } = await supabase
-        .from('products')
-        .update({ 
-          stock_quantity: restoredStock,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', existingItem.product_id)
-
-      if (stockUpdateError) {
-        console.error('Error restoring stock:', stockUpdateError);
-        return { data: null, error: `Failed to restore stock: ${stockUpdateError.message}` }
-      }
-
-      console.log(`Stock restored for ${product.name}: ${product.stock_quantity} -> ${restoredStock} (+${existingItem.quantity})`);
-    }
-    
-    // Case 2: When any cancelled order is reactivated (cancelled -> any other status)
-    // Need to deduct stock again
-    else if (oldStatus === 'cancelled' && status !== 'cancelled') {
-      console.log('Reactivating cancelled order - deducting stock...');
-      
-      // Get current product stock
-      const { data: product, error: productError } = await supabase
-        .from('products')
-        .select('stock_quantity, name')
-        .eq('id', existingItem.product_id)
-        .single()
-
-      if (productError) {
-        console.error('Error fetching product for stock deduction:', productError);
+        console.error('❌ [STOCK DEBUG] Error fetching product for stock deduction:', productError);
         return { data: null, error: `Failed to fetch product for stock deduction: ${productError.message}` }
       }
 
+      console.log(`📦 [STOCK DEBUG] Current product stock: ${product.stock_quantity} for "${product.name}"`);
+
       // Check if enough stock is available
       if (product.stock_quantity < existingItem.quantity) {
-        return { data: null, error: `Insufficient stock to reactivate order. Available: ${product.stock_quantity}, Required: ${existingItem.quantity}` }
+        console.log(`❌ [STOCK DEBUG] Insufficient stock: Available ${product.stock_quantity}, Required ${existingItem.quantity}`);
+        return { data: null, error: `Insufficient stock to accept order. Available: ${product.stock_quantity}, Required: ${existingItem.quantity}` }
       }
 
       // Deduct stock quantity
       const newStock = product.stock_quantity - existingItem.quantity;
+      console.log(`🔄 [STOCK DEBUG] Attempting to update stock: ${product.stock_quantity} → ${newStock} (deducting ${existingItem.quantity})`);
+      
       const { error: stockUpdateError } = await supabase
         .from('products')
         .update({ 
@@ -1412,17 +1430,107 @@ export async function updateOrderItemStatus(orderItemId: string, status: OrderIt
         .eq('id', existingItem.product_id)
 
       if (stockUpdateError) {
-        console.error('Error deducting stock:', stockUpdateError);
+        console.error('❌ [STOCK DEBUG] Error deducting stock:', stockUpdateError);
         return { data: null, error: `Failed to deduct stock: ${stockUpdateError.message}` }
       }
 
-      console.log(`Stock deducted for ${product.name}: ${product.stock_quantity} -> ${newStock} (-${existingItem.quantity})`);
+      console.log(`✅ [STOCK DEBUG] SUCCESS! Stock deducted for ${product.name}: ${product.stock_quantity} → ${newStock} (-${existingItem.quantity})`);
+    }
+    
+    // Case 2: When seller DECLINES order (pending → cancelled)
+    // No stock restoration needed since stock was never deducted in the first place
+    else if (status === 'cancelled' && oldStatus === 'pending') {
+      console.log('ℹ️ [STOCK DEBUG] Seller declined order - no stock changes needed (stock was never deducted)');
+    }
+    
+    // Case 3: When seller cancels ACCEPTED order (processing/shipped → cancelled)
+    // Need to restore stock since it was deducted when order was accepted
+    else if (status === 'cancelled' && (oldStatus === 'processing' || oldStatus === 'shipped')) {
+      console.log('🔄 [STOCK DEBUG] Seller cancelled accepted order - restoring stock...');
+      
+      // Get current product stock
+      const { data: product, error: productError } = await supabase
+        .from('products')
+        .select('stock_quantity, name')
+        .eq('id', existingItem.product_id)
+        .single()
+
+      if (productError) {
+        console.error('❌ [STOCK DEBUG] Error fetching product for stock restoration:', productError);
+        return { data: null, error: `Failed to fetch product for stock restoration: ${productError.message}` }
+      }
+
+      // Restore stock quantity (add back what was deducted)
+      const restoredStock = product.stock_quantity + existingItem.quantity;
+      console.log(`🔄 [STOCK DEBUG] Restoring stock: ${product.stock_quantity} → ${restoredStock} (adding back ${existingItem.quantity})`);
+      
+      const { error: stockUpdateError } = await supabase
+        .from('products')
+        .update({ 
+          stock_quantity: restoredStock,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingItem.product_id)
+
+      if (stockUpdateError) {
+        console.error('❌ [STOCK DEBUG] Error restoring stock:', stockUpdateError);
+        return { data: null, error: `Failed to restore stock: ${stockUpdateError.message}` }
+      }
+
+      console.log(`✅ [STOCK DEBUG] Stock restored for ${product.name}: ${product.stock_quantity} → ${restoredStock} (+${existingItem.quantity})`);
+    }
+    
+    // Case 4: When any cancelled order is reactivated (cancelled → any other status)
+    // Need to deduct stock again
+    else if (oldStatus === 'cancelled' && status !== 'cancelled') {
+      console.log('🔄 [STOCK DEBUG] Reactivating cancelled order - deducting stock...');
+      
+      // Get current product stock
+      const { data: product, error: productError } = await supabase
+        .from('products')
+        .select('stock_quantity, name')
+        .eq('id', existingItem.product_id)
+        .single()
+
+      if (productError) {
+        console.error('❌ [STOCK DEBUG] Error fetching product for stock deduction:', productError);
+        return { data: null, error: `Failed to fetch product for stock deduction: ${productError.message}` }
+      }
+
+      // Check if enough stock is available
+      if (product.stock_quantity < existingItem.quantity) {
+        console.log(`❌ [STOCK DEBUG] Insufficient stock for reactivation: Available ${product.stock_quantity}, Required ${existingItem.quantity}`);
+        return { data: null, error: `Insufficient stock to reactivate order. Available: ${product.stock_quantity}, Required: ${existingItem.quantity}` }
+      }
+
+      // Deduct stock quantity
+      const newStock = product.stock_quantity - existingItem.quantity;
+      console.log(`🔄 [STOCK DEBUG] Deducting stock for reactivation: ${product.stock_quantity} → ${newStock}`);
+      
+      const { error: stockUpdateError } = await supabase
+        .from('products')
+        .update({ 
+          stock_quantity: newStock,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingItem.product_id)
+
+      if (stockUpdateError) {
+        console.error('❌ [STOCK DEBUG] Error deducting stock:', stockUpdateError);
+        return { data: null, error: `Failed to deduct stock: ${stockUpdateError.message}` }
+      }
+
+      console.log(`✅ [STOCK DEBUG] Stock deducted for ${product.name}: ${product.stock_quantity} → ${newStock} (-${existingItem.quantity})`);
+    }
+    else {
+      console.log(`ℹ️ [STOCK DEBUG] Status transition ${oldStatus} → ${status} does not require stock changes`);
     }
 
-    // Note: Other status transitions (pending->processing, processing->shipped, etc.) 
-    // don't require stock changes since stock was already deducted at order creation
+    // Note: Other status transitions (processing→shipped, shipped→delivered, etc.) 
+    // don't require stock changes since stock management only happens at acceptance/cancellation
 
     // Now update the order item status
+    console.log(`🔄 [STOCK DEBUG] Updating order item status in database...`);
     const { data, error } = await supabase
       .from('order_items')
       .update({ status })
@@ -1432,19 +1540,19 @@ export async function updateOrderItemStatus(orderItemId: string, status: OrderIt
       .maybeSingle() // Use maybeSingle instead of single to handle edge cases
 
     if (error) {
-      console.error('Supabase error updating order item status:', error);
+      console.error('❌ [STOCK DEBUG] Supabase error updating order item status:', error);
       return { data: null, error: `Database error: ${error.message}` }
     }
 
     if (!data) {
-      console.error('No data returned after update');
+      console.error('❌ [STOCK DEBUG] No data returned after update');
       return { data: null, error: 'Update failed - no rows affected. Check permissions.' }
     }
 
-    console.log('Order item status updated successfully:', data);
+    console.log('✅ [STOCK DEBUG] Order item status updated successfully:', data);
     return { data, error: null }
   } catch (error: unknown) {
-    console.error('Error in updateOrderItemStatus:', error);
+    console.error('❌ [STOCK DEBUG] Caught exception in updateOrderItemStatus:', error);
     if (error && typeof error === 'object' && 'message' in error) {
       return { data: null, error: (error as { message: string }).message }
     }

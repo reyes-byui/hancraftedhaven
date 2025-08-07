@@ -7,7 +7,7 @@
 "use client";
 
 import { useEffect } from 'react';
-import { handleAuthError } from '@/lib/supabase';
+import { handleAuthError, clearAuthState, recoverFromAuthError } from '@/lib/supabase';
 
 interface AuthErrorRecoveryProps {
   children: React.ReactNode;
@@ -16,33 +16,50 @@ interface AuthErrorRecoveryProps {
 export default function AuthErrorRecovery({ children }: AuthErrorRecoveryProps) {
   useEffect(() => {
     // Listen for unhandled auth errors
-    const handleError = (event: ErrorEvent) => {
+    const handleError = async (event: ErrorEvent) => {
       const error = event.error;
-      if (error?.message?.includes('Invalid Refresh Token') || 
-          error?.message?.includes('Refresh Token Not Found') ||
-          error?.message?.includes('refresh_token_not_found')) {
-        console.log('Detected auth error, cleaning up...');
-        handleAuthError(error);
-        // Optionally reload the page after cleanup
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
+      const errorMessage = error?.message || error?.toString() || '';
+      
+      if (errorMessage.includes('AuthApiError') ||
+          errorMessage.includes('Invalid Refresh Token') || 
+          errorMessage.includes('Refresh Token Not Found') ||
+          errorMessage.includes('refresh_token_not_found') ||
+          errorMessage.includes('invalid_grant')) {
+        
+        console.log('🚨 Detected auth error, attempting recovery...');
+        
+        // Try to recover first
+        const recovered = await recoverFromAuthError();
+        if (!recovered) {
+          console.log('🚨 Recovery failed, clearing auth state...');
+          // Show user-friendly message before redirect
+          alert('Your session has expired. You will be redirected to the login page.');
+        }
       }
     };
 
     // Listen for promise rejections (common source of auth errors)
-    const handlePromiseRejection = (event: PromiseRejectionEvent) => {
+    const handlePromiseRejection = async (event: PromiseRejectionEvent) => {
       const error = event.reason;
-      if (error?.message?.includes('Invalid Refresh Token') || 
-          error?.message?.includes('Refresh Token Not Found') ||
-          error?.message?.includes('refresh_token_not_found')) {
-        console.log('Detected auth promise rejection, cleaning up...');
-        handleAuthError(error);
+      const errorMessage = error?.message || error?.toString() || '';
+      
+      if (errorMessage.includes('AuthApiError') ||
+          errorMessage.includes('Invalid Refresh Token') || 
+          errorMessage.includes('Refresh Token Not Found') ||
+          errorMessage.includes('refresh_token_not_found') ||
+          errorMessage.includes('invalid_grant')) {
+        
+        console.log('🚨 Detected auth promise rejection, attempting recovery...');
+        
+        // Try to recover first
+        const recovered = await recoverFromAuthError();
+        if (!recovered) {
+          console.log('🚨 Recovery failed, clearing auth state...');
+          // Show user-friendly message before redirect
+          alert('Your session has expired. You will be redirected to the login page.');
+        }
+        
         event.preventDefault(); // Prevent the error from being logged
-        // Optionally reload the page after cleanup
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
       }
     };
 
@@ -62,15 +79,30 @@ export default function AuthErrorRecovery({ children }: AuthErrorRecoveryProps) 
  * Hook to manually clear auth state when errors occur
  */
 export function useAuthErrorRecovery() {
-  const clearAuthState = async () => {
+  const clearAuthStateManually = async () => {
     try {
-      await handleAuthError({ message: 'Manual auth cleanup' });
-      // Redirect to login page
-      window.location.href = '/login';
+      console.log('🧹 Manual auth state cleanup initiated...');
+      await clearAuthState();
     } catch (error) {
-      console.error('Error clearing auth state:', error);
+      console.error('❌ Error clearing auth state:', error);
+      // Fallback: hard redirect to login
+      window.location.href = '/login';
     }
   };
 
-  return { clearAuthState };
+  const recoverAuth = async () => {
+    try {
+      console.log('🔄 Manual auth recovery initiated...');
+      const recovered = await recoverFromAuthError();
+      return recovered;
+    } catch (error) {
+      console.error('❌ Error recovering auth:', error);
+      return false;
+    }
+  };
+
+  return { 
+    clearAuthState: clearAuthStateManually,
+    recoverAuth
+  };
 }
