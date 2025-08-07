@@ -1,6 +1,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import Footer from "@/components/Footer";
 
 export default function ForgotPasswordPage() {
   return (
@@ -21,6 +22,7 @@ export default function ForgotPasswordPage() {
           <Link href="/login" className="text-[#8d6748] hover:underline">Back to login</Link>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { getCurrentUserWithProfile, updateUserProfile, updatePassword, deleteAccount, uploadProfilePhoto } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import Footer from "@/components/Footer";
 
 export default function AccountSettings() {
   const [user, setUser] = useState<{ id: string; email?: string; created_at?: string } | null>(null);
@@ -514,6 +515,7 @@ export default function AccountSettings() {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { handleAuthError } from '@/lib/supabase';
 import Link from 'next/link';
+import Footer from '@/components/Footer';
 
 export default function AuthCleanerPage() {
   const [status, setStatus] = useState<'idle' | 'clearing' | 'success' | 'error'>('idle');
@@ -104,6 +105,7 @@ export default function AuthCleanerPage() {
           <p>This will clear all stored authentication tokens and session data.</p>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

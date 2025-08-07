@@ -5,6 +5,7 @@ import { useState } from "react";
 import { signInCustomer, handleAuthError } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import MainHeader from "@/components/MainHeader";
+import Footer from "@/components/Footer";
 
 export default function CustomerLoginPage() {
   const [email, setEmail] = useState("");
@@ -113,6 +114,7 @@ export default function CustomerLoginPage() {
         </div>
       </div>
       </div>
+      <Footer />
     </div>
   );
 }

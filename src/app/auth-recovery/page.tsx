@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from '@/lib/supabase';
 import MainHeader from '@/components/MainHeader';
+import Footer from '@/components/Footer';
 
 export default function AuthRecoveryPage() {
   const router = useRouter();
@@ -54,6 +55,7 @@ export default function AuthRecoveryPage() {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

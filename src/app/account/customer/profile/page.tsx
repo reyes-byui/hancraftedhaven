@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import MainHeader from "@/components/MainHeader";
+import Footer from "@/components/Footer";
 import { getCurrentUserWithProfile, updateCustomerProfile, type CustomerProfile } from "@/lib/supabase";
 
 export default function CustomerProfilePage() {
@@ -211,6 +212,7 @@ export default function CustomerProfilePage() {
           </form>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

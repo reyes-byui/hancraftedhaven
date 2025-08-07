@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useState, useEffect, Suspense } from "react";
 import { completeSellerProfile, uploadProfilePhotoOnly, getCurrentUser } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
+import Footer from "@/components/Footer";
 
 function SellerProfileSetupForm() {
   const [firstName, setFirstName] = useState("");
@@ -261,6 +262,7 @@ function SellerProfileSetupForm() {
           * Required fields
         </p>
       </div>
+      <Footer />
     </div>
   );
 }

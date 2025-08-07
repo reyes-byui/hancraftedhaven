@@ -5,6 +5,8 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import MainHeader from "@/components/MainHeader";
+import Footer from "@/components/Footer";
+
 import { 
   getCurrentUserWithProfile, 
   getCustomerFavorites, 
@@ -291,6 +293,7 @@ export default function FavoritesPage() {
           )}
         </div>
       </main>
+      <Footer />
 
       {/* Buy Modal */}
       {showBuyModal && selectedProduct && (

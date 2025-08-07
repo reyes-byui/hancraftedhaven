@@ -5,6 +5,8 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import MainHeader from "@/components/MainHeader";
+import Footer from "@/components/Footer";
+
 import { 
   getCurrentUserWithProfile, 
   getCartItems, 
@@ -293,6 +295,7 @@ export default function ShoppingCartPage() {
           )}
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

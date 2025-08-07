@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { getCurrentUserWithProfile } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import MainHeader from "@/components/MainHeader";
+import Footer from "@/components/Footer";
 
 export default function CustomerDashboard() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
@@ -135,6 +136,7 @@ export default function CustomerDashboard() {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

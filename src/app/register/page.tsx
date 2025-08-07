@@ -1,6 +1,7 @@
 
 import Link from "next/link";
 import MainHeader from "@/components/MainHeader";
+import Footer from "@/components/Footer";
 
 export default function RegisterPage() {
   return (
@@ -42,6 +43,7 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

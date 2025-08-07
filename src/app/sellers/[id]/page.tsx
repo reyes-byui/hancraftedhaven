@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import MainHeader from '@/components/MainHeader';
+import Footer from '@/components/Footer';
 import { getCurrentUserWithProfile, getSellerProfile, getProductsBySellerId, type SellerProfile, type Product } from '@/lib/supabase';
 
 export default function SellerProfilePage() {
@@ -202,6 +203,7 @@ export default function SellerProfilePage() {
           )}
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

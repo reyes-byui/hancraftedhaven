@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import MainHeader from '@/components/MainHeader';
+import Footer from '@/components/Footer';
 import { getCurrentUserWithProfile, getProductById, getSellerProfile, addToCart, type Product, type SellerProfile } from '@/lib/supabase';
 
 export default function ProductDetailPage() {
@@ -239,6 +240,7 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import MainHeader from "@/components/MainHeader";
+import Footer from "@/components/Footer";
+
 import { 
   getCurrentUserWithProfile, 
   getCustomerOrders, 
@@ -238,6 +240,7 @@ export default function OrderHistoryPage() {
           )}
         </div>
       </main>
+      <Footer />
     </div>
   );
 }
