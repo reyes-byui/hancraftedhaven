@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getCurrentUserWithProfile, getSellerProducts, getSellerOrders, updateOrderItemStatus, type Product, type OrderItem, type Order } from "@/lib/supabase";
+import { getCurrentUserWithProfile, getSellerProducts, getSellerOrders, updateOrderItemStatus, getSellerInquiries, respondToInquiry, updateInquiryStatus, type Product, type OrderItem, type Order, type ProductInquiryWithProduct } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import AddProductModal from "@/components/AddProductModal";
 import ProductsList from "@/components/ProductsList";
@@ -23,12 +23,16 @@ export default function SellerDashboard() {
   } | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<(OrderItem & { order: Order })[]>([]);
+  const [inquiries, setInquiries] = useState<ProductInquiryWithProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [productsLoading, setProductsLoading] = useState(false);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [inquiriesLoading, setInquiriesLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'inquiries'>('overview');
   const [updatingOrderItemId, setUpdatingOrderItemId] = useState<string | null>(null);
+  const [respondingToInquiry, setRespondingToInquiry] = useState<string | null>(null);
+  const [inquiryResponse, setInquiryResponse] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -41,6 +45,7 @@ export default function SellerDashboard() {
         setProfile(profile);
         await loadProducts();
         await loadOrders();
+        await loadInquiries();
       }
       setLoading(false);
     }
@@ -82,6 +87,26 @@ export default function SellerDashboard() {
       setOrders([]);
     } finally {
       setOrdersLoading(false);
+    }
+  };
+
+  const loadInquiries = async () => {
+    setInquiriesLoading(true);
+    try {
+      console.log('Loading inquiries...');
+      const { data, error } = await getSellerInquiries();
+      if (error) {
+        console.error('Error loading inquiries:', error);
+        setInquiries([]);
+      } else {
+        console.log('Inquiries loaded successfully:', data);
+        setInquiries(data);
+      }
+    } catch (error) {
+      console.error('Caught error loading inquiries:', error);
+      setInquiries([]);
+    } finally {
+      setInquiriesLoading(false);
     }
   };
 
@@ -130,6 +155,47 @@ export default function SellerDashboard() {
       alert('Error updating item status. Please try again.');
     } finally {
       setUpdatingOrderItemId(null);
+    }
+  };
+
+  // Handle inquiry response
+  const handleInquiryResponse = async (inquiryId: string) => {
+    if (!inquiryResponse.trim()) {
+      alert('Please enter a response message');
+      return;
+    }
+
+    setRespondingToInquiry(inquiryId);
+    try {
+      const { error } = await respondToInquiry(inquiryId, inquiryResponse.trim());
+      if (error) {
+        alert('Error sending response: ' + error);
+      } else {
+        alert('Response sent successfully!');
+        setInquiryResponse('');
+        await loadInquiries(); // Reload to reflect changes
+      }
+    } catch (error) {
+      console.error('Error sending response:', error);
+      alert('Error sending response. Please try again.');
+    } finally {
+      setRespondingToInquiry(null);
+    }
+  };
+
+  // Mark inquiry as resolved
+  const handleMarkResolved = async (inquiryId: string) => {
+    try {
+      const { error } = await updateInquiryStatus(inquiryId, 'closed');
+      if (error) {
+        alert('Error updating inquiry status: ' + error);
+      } else {
+        alert('Inquiry marked as resolved!');
+        await loadInquiries();
+      }
+    } catch (error) {
+      console.error('Error updating inquiry status:', error);
+      alert('Error updating inquiry status. Please try again.');
     }
   };
 
@@ -268,6 +334,16 @@ export default function SellerDashboard() {
                 }`}
               >
                 Orders ({orders.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('inquiries')}
+                className={`py-4 px-6 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'inquiries'
+                    ? 'border-[#8d6748] text-[#8d6748]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                📧 Inquiries ({inquiries.length})
               </button>
             </nav>
           </div>
@@ -485,6 +561,140 @@ export default function SellerDashboard() {
                               </div>
                             )}
                           </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'inquiries' && (
+              <div>
+                <h2 className="text-2xl font-serif font-bold text-[#8d6748] mb-6">Customer Inquiries</h2>
+
+                {inquiriesLoading ? (
+                  <div className="text-center py-12">
+                    <div className="text-[#8d6748] text-xl">Loading inquiries...</div>
+                  </div>
+                ) : inquiries.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-gray-500 text-xl mb-4">No inquiries yet</div>
+                    <p className="text-gray-400 mb-4">When customers send inquiries about your products, they will appear here.</p>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-2xl mx-auto">
+                      <p className="text-blue-800 text-sm">
+                        <strong>How it works:</strong>
+                        <br />• Customers can send inquiries from product detail pages
+                        <br />• You'll receive notifications via email
+                        <br />• Respond to inquiries here or via email
+                        <br />• Track inquiry status and history
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {inquiries.map((inquiry) => (
+                      <div key={inquiry.id} className="bg-white border border-gray-200 rounded-lg p-6">
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="flex-1">
+                            <h3 className="font-bold text-lg text-[#8d6748] mb-1">
+                              {inquiry.subject}
+                            </h3>
+                            <p className="text-sm text-gray-600 mb-2">
+                              Product: <Link href={`/products/${inquiry.product_id}`} className="text-[#8d6748] hover:underline font-medium">{inquiry.product?.name}</Link>
+                            </p>
+                            <p className="text-sm text-gray-600 mb-2">
+                              From: {inquiry.customer_name} ({inquiry.customer_email})
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              Sent: {new Date(inquiry.created_at).toLocaleDateString()} at {new Date(inquiry.created_at).toLocaleTimeString()}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                              inquiry.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              inquiry.status === 'responded' ? 'bg-blue-100 text-blue-800' :
+                              inquiry.status === 'closed' ? 'bg-gray-100 text-gray-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {inquiry.status.charAt(0).toUpperCase() + inquiry.status.slice(1)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Customer Message */}
+                        <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                          <h4 className="font-medium text-[#4d5c3a] mb-2">Customer Message:</h4>
+                          <p className="text-gray-700 whitespace-pre-wrap">{inquiry.message}</p>
+                        </div>
+
+                        {/* Seller Response Section */}
+                        {inquiry.seller_response && (
+                          <div className="mb-4 p-4 bg-[#f8f5f2] rounded-lg border-l-4 border-[#8d6748]">
+                            <h4 className="font-medium text-[#4d5c3a] mb-2">Your Response:</h4>
+                            <p className="text-gray-700 whitespace-pre-wrap">{inquiry.seller_response}</p>
+                            <p className="text-sm text-gray-500 mt-2">
+                              Sent: {inquiry.responded_at ? new Date(inquiry.responded_at).toLocaleDateString() + ' at ' + new Date(inquiry.responded_at).toLocaleTimeString() : 'Unknown'}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200">
+                          {inquiry.status !== 'closed' && (
+                            <>
+                              {!inquiry.seller_response ? (
+                                <div className="flex-1">
+                                  <textarea
+                                    value={respondingToInquiry === inquiry.id ? inquiryResponse : ''}
+                                    onChange={(e) => {
+                                      if (respondingToInquiry === inquiry.id) {
+                                        setInquiryResponse(e.target.value);
+                                      } else {
+                                        setRespondingToInquiry(inquiry.id);
+                                        setInquiryResponse('');
+                                      }
+                                    }}
+                                    placeholder="Type your response here..."
+                                    rows={3}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8d6748] resize-none"
+                                  />
+                                  <div className="flex gap-2 mt-2">
+                                    <button
+                                      onClick={() => handleInquiryResponse(inquiry.id)}
+                                      disabled={!inquiryResponse.trim() || respondingToInquiry !== inquiry.id}
+                                      className="px-4 py-2 bg-[#8d6748] text-white rounded-lg hover:bg-[#7a5c3f] disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                                    >
+                                      Send Response
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setRespondingToInquiry(null);
+                                        setInquiryResponse('');
+                                      }}
+                                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 text-sm font-medium"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => handleMarkResolved(inquiry.id)}
+                                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+                                >
+                                  Mark as Resolved
+                                </button>
+                              )}
+                            </>
+                          )}
+                          
+                          <a
+                            href={`mailto:${inquiry.customer_email}?subject=Re: ${inquiry.subject}&body=Hello ${inquiry.customer_name},%0D%0A%0D%0AThank you for your inquiry about "${inquiry.product?.name}".%0D%0A%0D%0A`}
+                            className="px-4 py-2 bg-[#4d5c3a] text-white rounded-lg hover:bg-[#3d4a2e] text-sm font-medium text-center"
+                          >
+                            📧 Reply via Email
+                          </a>
                         </div>
                       </div>
                     ))}

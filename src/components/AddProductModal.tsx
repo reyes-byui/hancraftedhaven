@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createProduct, uploadProductImage, updateProduct, PRODUCT_CATEGORIES, type CreateProductData, type Product } from "@/lib/supabase";
+import { createProduct, uploadProductImage, updateProduct, uploadMultipleProductImages, getProductImages, deleteProductImage, setProductPrimaryImage, PRODUCT_CATEGORIES, type CreateProductData, type Product, type ProductImage } from "@/lib/supabase";
 import Image from "next/image";
 
 interface AddProductModalProps {
@@ -21,12 +21,22 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, editP
     stock_quantity: 1
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [existingImages, setExistingImages] = useState<ProductImage[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   // Populate form when editing
   useEffect(() => {
+    const loadExistingImages = async () => {
+      if (editProduct) {
+        const { data: images } = await getProductImages(editProduct.id);
+        setExistingImages(images || []);
+      }
+    };
+
     if (editProduct) {
       setFormData({
         name: editProduct.name,
@@ -37,6 +47,7 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, editP
         stock_quantity: editProduct.stock_quantity
       });
       setPreviewUrl(editProduct.image_url || '');
+      loadExistingImages();
     } else {
       // Reset form for new product
       setFormData({
@@ -48,8 +59,11 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, editP
         stock_quantity: 1
       });
       setPreviewUrl('');
+      setExistingImages([]);
     }
     setSelectedFile(null);
+    setSelectedFiles([]);
+    setPreviewUrls([]);
     setError('');
   }, [editProduct, isOpen]);
 
@@ -72,6 +86,46 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, editP
     } else {
       setSelectedFile(null);
       setPreviewUrl('');
+    }
+  };
+
+  const handleMultipleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setSelectedFiles(files);
+      const urls = files.map(file => URL.createObjectURL(file));
+      setPreviewUrls(urls);
+    } else {
+      setSelectedFiles([]);
+      setPreviewUrls([]);
+    }
+  };
+
+  const removePreviewImage = (index: number) => {
+    const newFiles = selectedFiles.filter((_, i) => i !== index);
+    const newUrls = previewUrls.filter((_, i) => i !== index);
+    setSelectedFiles(newFiles);
+    setPreviewUrls(newUrls);
+  };
+
+  const removeExistingImage = async (imageId: string) => {
+    const { error } = await deleteProductImage(imageId);
+    if (error) {
+      alert('Failed to delete image: ' + error);
+    } else {
+      setExistingImages(prev => prev.filter(img => img.id !== imageId));
+    }
+  };
+
+  const setPrimaryImage = async (imageId: string, productId: string) => {
+    const { error } = await setProductPrimaryImage(imageId, productId);
+    if (error) {
+      alert('Failed to set primary image: ' + error);
+    } else {
+      setExistingImages(prev => prev.map(img => ({
+        ...img,
+        is_primary: img.id === imageId
+      })));
     }
   };
 
@@ -107,8 +161,17 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, editP
         product = newProduct;
       }
 
-      // Upload image if selected
-      if (selectedFile) {
+      // Upload images if selected
+      if (selectedFiles.length > 0) {
+        const { data: uploadedImages, error: uploadError } = await uploadMultipleProductImages(selectedFiles, product.id);
+        if (uploadError) {
+          console.error('Multiple images upload failed:', uploadError);
+          // Don't fail the entire process if image upload fails
+        } else if (uploadedImages && uploadedImages.length > 0) {
+          console.log(`Successfully uploaded ${uploadedImages.length} images`);
+        }
+      } else if (selectedFile) {
+        // Fallback to single image upload for backward compatibility
         const { data: uploadUrl, error: uploadError } = await uploadProductImage(selectedFile, product.id);
         if (uploadError) {
           console.error('Image upload failed:', uploadError);
@@ -265,35 +328,136 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded, editP
               </div>
             </div>
 
-            {/* Image Upload */}
+            {/* Image Upload Section */}
             <div>
-              <label htmlFor="image" className="block text-sm font-medium text-[#4d5c3a] mb-2">
-                Product Image
+              <label className="block text-sm font-medium text-[#4d5c3a] mb-2">
+                Product Images
               </label>
-              <input
-                type="file"
-                id="image"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8d6748]"
-              />
-              {(previewUrl || editProduct?.image_url) && (
-                <div className="mt-2">
-                  <div className="relative w-32 h-32">
-                    <Image
-                      src={previewUrl || editProduct?.image_url || ''}
-                      alt="Preview"
-                      fill
-                      className="object-cover rounded-lg"
-                    />
-                    {editProduct?.image_url && !selectedFile && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 rounded-b-lg">
-                        Current Image
+              
+              {/* Existing Images (when editing) */}
+              {editProduct && existingImages.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-[#4d5c3a] mb-2">Current Images</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {existingImages.map((image) => (
+                      <div key={image.id} className="relative">
+                        <div className="relative w-full h-32">
+                          <Image
+                            src={image.image_url}
+                            alt={image.alt_text || 'Product image'}
+                            fill
+                            className="object-cover rounded-lg"
+                          />
+                          {image.is_primary && (
+                            <div className="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded text-xs">
+                              Primary
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-1 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => setPrimaryImage(image.id, editProduct.id)}
+                            disabled={image.is_primary}
+                            className="flex-1 px-2 py-1 bg-blue-100 text-blue-800 hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400 rounded text-xs"
+                          >
+                            {image.is_primary ? 'Primary' : 'Set Primary'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeExistingImage(image.id)}
+                            className="px-2 py-1 bg-red-100 text-red-800 hover:bg-red-200 rounded text-xs"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
-                    )}
+                    ))}
                   </div>
                 </div>
               )}
+
+              {/* Multiple Images Upload */}
+              <div className="mb-4">
+                <label htmlFor="multiple-images" className="block text-sm font-medium text-[#4d5c3a] mb-2">
+                  Add New Images (Multiple)
+                </label>
+                <input
+                  type="file"
+                  id="multiple-images"
+                  accept="image/*"
+                  multiple
+                  onChange={handleMultipleFilesChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8d6748]"
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Select multiple images (first image will be the primary image)
+                </p>
+              </div>
+
+              {/* Preview new images */}
+              {previewUrls.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-[#4d5c3a] mb-2">New Images Preview</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {previewUrls.map((url, index) => (
+                      <div key={index} className="relative">
+                        <div className="relative w-full h-32">
+                          <Image
+                            src={url}
+                            alt={`Preview ${index + 1}`}
+                            fill
+                            className="object-cover rounded-lg"
+                          />
+                          {index === 0 && (
+                            <div className="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded text-xs">
+                              Primary
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removePreviewImage(index)}
+                          className="w-full mt-2 px-2 py-1 bg-red-100 text-red-800 hover:bg-red-200 rounded text-xs"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Single Image Upload (backward compatibility) */}
+              <div>
+                <label htmlFor="single-image" className="block text-sm font-medium text-[#4d5c3a] mb-2">
+                  Or Add Single Image
+                </label>
+                <input
+                  type="file"
+                  id="single-image"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8d6748]"
+                />
+                {(previewUrl || editProduct?.image_url) && (
+                  <div className="mt-2">
+                    <div className="relative w-32 h-32">
+                      <Image
+                        src={previewUrl || editProduct?.image_url || ''}
+                        alt="Preview"
+                        fill
+                        className="object-cover rounded-lg"
+                      />
+                      {editProduct?.image_url && !selectedFile && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 rounded-b-lg">
+                          Current Image
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Price Preview */}

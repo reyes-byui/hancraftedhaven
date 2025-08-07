@@ -6,7 +6,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import MainHeader from '@/components/MainHeader';
 import Footer from '@/components/Footer';
-import { getCurrentUserWithProfile, getProductById, getSellerProfile, addToCart, type Product, type SellerProfile } from '@/lib/supabase';
+import ProductImageGallery from '@/components/ProductImageGallery';
+import ProductInquiryModal from '@/components/ProductInquiryModal';
+import { getCurrentUserWithProfile, getProductById, getSellerProfile, addToCart, getProductWithImages, type Product, type SellerProfile, type ProductWithImages } from '@/lib/supabase';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -14,12 +16,13 @@ export default function ProductDetailPage() {
   const productId = params.id as string;
 
   const [loading, setLoading] = useState(true);
-  const [product, setProduct] = useState<Product | null>(null);
+  const [product, setProduct] = useState<ProductWithImages | null>(null);
   const [seller, setSeller] = useState<SellerProfile | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [addingToCart, setAddingToCart] = useState(false);
+  const [showInquiryModal, setShowInquiryModal] = useState(false);
 
   useEffect(() => {
     if (productId) {
@@ -38,12 +41,16 @@ export default function ProductDetailPage() {
     try {
       setLoading(true);
       
-      // Load product details
-      const { data: productData, error: productError } = await getProductById(productId);
+      // Load product details with images
+      console.log('Loading product with images for ID:', productId);
+      const { data: productData, error: productError } = await getProductWithImages(productId);
       if (productError) {
+        console.error('Product error:', productError);
         setError(productError);
         return;
       }
+      console.log('Product data loaded:', productData);
+      console.log('Product images:', productData?.images);
       setProduct(productData);
 
       // Load seller info
@@ -121,15 +128,33 @@ export default function ProductDetailPage() {
       
       <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Product Image */}
+          {/* Product Images Gallery */}
           <div className="bg-white rounded-xl shadow-lg p-6 border-t-4 border-[#e07a5f]">
-            <Image
-              src={product.image_url || "https://images.unsplash.com/photo-1661185152130-4214a30ced36?q=80&w=1074&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"}
-              alt={product.name}
-              width={500}
-              height={500}
-              className="w-full h-[400px] object-cover rounded-lg"
-            />
+            {(() => {
+              console.log('Checking product images:', product.images);
+              console.log('Images array length:', product.images?.length);
+              return product.images && product.images.length > 0;
+            })() ? (
+              <ProductImageGallery 
+                images={product.images} 
+                productName={product.name}
+                className="w-full"
+              />
+            ) : (
+              /* Fallback to single image if database not set up */
+              <div className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                <Image
+                  src={product.image_url || "https://images.unsplash.com/photo-1661185152130-4214a30ced36?q=80&w=1074&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"}
+                  alt={product.name}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className="object-cover"
+                />
+                <div className="absolute bottom-3 right-3 bg-blue-500 text-white px-2 py-1 rounded text-xs">
+                  💡 Run SQL to enable multiple images
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Product Details */}
@@ -211,7 +236,7 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* Add to Cart Button */}
+            {/* Add to Cart and Inquiry Buttons */}
             <div className="space-y-3">
               {product.stock_quantity === 0 ? (
                 <button 
@@ -229,6 +254,27 @@ export default function ProductDetailPage() {
                   {addingToCart ? 'Adding to Cart...' : currentUser ? 'Add to Cart' : 'Log in to Buy'}
                 </button>
               )}
+
+              {/* Send Inquiry Button */}
+              {currentUser && currentUser.role === 'customer' && (
+                <button
+                  onClick={() => setShowInquiryModal(true)}
+                  className="w-full bg-[#4d5c3a] text-white py-2 px-6 rounded-lg font-medium hover:bg-[#3d4a2e] transition-colors"
+                >
+                  📧 Send Inquiry About This Item
+                </button>
+              )}
+              
+              {/* Database setup reminder */}
+              {!product.images && (
+                <div className="text-center p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-blue-800 text-sm">
+                    💡 <strong>Setup Required:</strong> Run the SQL script to enable multiple images and inquiries!
+                    <br />
+                    Check <code className="bg-blue-100 px-1 rounded">docs/MULTIPLE_IMAGES_AND_INQUIRIES_SETUP.sql</code>
+                  </p>
+                </div>
+              )}
               
               <Link 
                 href="/listings" 
@@ -239,6 +285,19 @@ export default function ProductDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Product Inquiry Modal */}
+        {showInquiryModal && currentUser && seller && (
+          <ProductInquiryModal
+            isOpen={showInquiryModal}
+            onClose={() => setShowInquiryModal(false)}
+            productId={product.id}
+            sellerId={product.seller_id}
+            productName={product.name}
+            customerName={`${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim()}
+            customerEmail={currentUser.email || ''}
+          />
+        )}
       </main>
       <Footer />
     </div>

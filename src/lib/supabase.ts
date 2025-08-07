@@ -278,6 +278,51 @@ export type CartItemWithProduct = CartItem & {
   product: Product
 }
 
+// Product Images types
+export type ProductImage = {
+  id: string
+  product_id: string
+  image_url: string
+  display_order: number
+  is_primary: boolean
+  alt_text?: string
+  created_at: string
+}
+
+export type ProductWithImages = Product & {
+  images: ProductImage[]
+}
+
+// Product Inquiry types
+export type ProductInquiry = {
+  id: string
+  product_id: string
+  customer_id: string
+  seller_id: string
+  subject: string
+  message: string
+  customer_email: string
+  customer_name: string
+  status: 'pending' | 'responded' | 'closed'
+  seller_response?: string
+  responded_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export type ProductInquiryWithProduct = ProductInquiry & {
+  product: Pick<Product, 'id' | 'name' | 'image_url'>
+}
+
+export type CreateInquiryData = {
+  product_id: string
+  seller_id: string
+  subject: string
+  message: string
+  customer_email: string
+  customer_name: string
+}
+
 // Complete profile data for forms
 export type CompleteCustomerProfile = Omit<CustomerProfile, 'id' | 'profile_completed'> & {
   first_name: string
@@ -1113,6 +1158,345 @@ export async function uploadProductImage(file: File, productId: string): Promise
       .getPublicUrl(filePath)
 
     return { data: publicUrl.publicUrl, error: null }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// ============ MULTIPLE PRODUCT IMAGES FUNCTIONS ============
+
+// Upload multiple images for a product
+export async function uploadMultipleProductImages(files: File[], productId: string): Promise<{ data: ProductImage[], error: string | null }> {
+  try {
+    const { data: user } = await supabase.auth.getUser()
+    if (!user.user) {
+      return { data: [], error: 'User not authenticated' }
+    }
+
+    const uploadedImages: ProductImage[] = []
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${productId}-${Date.now()}-${i}.${fileExt}`
+      const filePath = `${user.user.id}/${fileName}`
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, file)
+
+      if (uploadError) {
+        console.error('Failed to upload image:', uploadError)
+        continue // Skip this image but continue with others
+      }
+
+      // Get public URL
+      const { data: publicUrl } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(filePath)
+
+      // Save to database
+      const { data: imageRecord, error: dbError } = await supabase
+        .from('product_images')
+        .insert({
+          product_id: productId,
+          image_url: publicUrl.publicUrl,
+          display_order: i,
+          is_primary: i === 0, // First image is primary
+          alt_text: file.name
+        })
+        .select()
+        .single()
+
+      if (dbError) {
+        console.error('Failed to save image record:', dbError)
+        continue
+      }
+
+      uploadedImages.push(imageRecord)
+    }
+
+    return { data: uploadedImages, error: null }
+  } catch (error: unknown) {
+    return { data: [], error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get all images for a product
+export async function getProductImages(productId: string): Promise<{ data: ProductImage[], error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('product_images')
+      .select('*')
+      .eq('product_id', productId)
+      .order('display_order', { ascending: true })
+
+    if (error) {
+      throw error
+    }
+
+    return { data: data || [], error: null }
+  } catch (error: unknown) {
+    return { data: [], error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Delete a product image
+export async function deleteProductImage(imageId: string): Promise<{ error: string | null }> {
+  try {
+    // Get image details first to delete from storage
+    const { data: image, error: fetchError } = await supabase
+      .from('product_images')
+      .select('image_url')
+      .eq('id', imageId)
+      .single()
+
+    if (fetchError || !image) {
+      throw new Error('Image not found')
+    }
+
+    // Extract file path from URL
+    const url = new URL(image.image_url)
+    const filePath = url.pathname.split('/').slice(-2).join('/') // Get last two parts of path
+
+    // Delete from storage
+    const { error: storageError } = await supabase.storage
+      .from('product-images')
+      .remove([filePath])
+
+    if (storageError) {
+      console.error('Failed to delete from storage:', storageError)
+    }
+
+    // Delete from database
+    const { error } = await supabase
+      .from('product_images')
+      .delete()
+      .eq('id', imageId)
+
+    if (error) {
+      throw error
+    }
+
+    return { error: null }
+  } catch (error: unknown) {
+    return { error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Set primary image for a product
+export async function setProductPrimaryImage(imageId: string, productId: string): Promise<{ error: string | null }> {
+  try {
+    // Reset all images to non-primary
+    await supabase
+      .from('product_images')
+      .update({ is_primary: false })
+      .eq('product_id', productId)
+
+    // Set the selected image as primary
+    const { error } = await supabase
+      .from('product_images')
+      .update({ is_primary: true })
+      .eq('id', imageId)
+
+    if (error) {
+      throw error
+    }
+
+    return { error: null }
+  } catch (error: unknown) {
+    return { error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get product with all images
+export async function getProductWithImages(productId: string): Promise<{ data: ProductWithImages | null, error: string | null }> {
+  try {
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', productId)
+      .eq('is_active', true)
+      .single()
+
+    if (productError || !product) {
+      return { data: null, error: productError?.message || 'Product not found' }
+    }
+
+    const { data: images, error: imagesError } = await getProductImages(productId)
+    
+    if (imagesError) {
+      return { data: null, error: imagesError }
+    }
+
+    const productWithImages: ProductWithImages = {
+      ...product,
+      images: images || []
+    }
+
+    return { data: productWithImages, error: null }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// ============ PRODUCT INQUIRY FUNCTIONS ============
+
+// Create a new product inquiry
+export async function createProductInquiry(inquiryData: CreateInquiryData): Promise<{ data: ProductInquiry | null, error: string | null }> {
+  try {
+    const { data: user } = await supabase.auth.getUser()
+    if (!user.user) {
+      return { data: null, error: 'User not authenticated' }
+    }
+
+    const { data, error } = await supabase
+      .from('product_inquiries')
+      .insert({
+        ...inquiryData,
+        customer_id: user.user.id
+      })
+      .select()
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    return { data, error: null }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get customer's inquiries
+export async function getCustomerInquiries(): Promise<{ data: ProductInquiryWithProduct[], error: string | null }> {
+  try {
+    const { data: user } = await supabase.auth.getUser()
+    if (!user.user) {
+      return { data: [], error: 'User not authenticated' }
+    }
+
+    const { data, error } = await supabase
+      .from('product_inquiries')
+      .select(`
+        *,
+        product:products(id, name, image_url)
+      `)
+      .eq('customer_id', user.user.id)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      throw error
+    }
+
+    return { data: data || [], error: null }
+  } catch (error: unknown) {
+    return { data: [], error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get seller's inquiries
+export async function getSellerInquiries(): Promise<{ data: ProductInquiryWithProduct[], error: string | null }> {
+  try {
+    const { data: user } = await supabase.auth.getUser()
+    if (!user.user) {
+      return { data: [], error: 'User not authenticated' }
+    }
+
+    const { data, error } = await supabase
+      .from('product_inquiries')
+      .select(`
+        *,
+        product:products(id, name, image_url)
+      `)
+      .eq('seller_id', user.user.id)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      throw error
+    }
+
+    return { data: data || [], error: null }
+  } catch (error: unknown) {
+    return { data: [], error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Respond to an inquiry (seller)
+export async function respondToInquiry(inquiryId: string, response: string): Promise<{ error: string | null }> {
+  try {
+    const { data: user } = await supabase.auth.getUser()
+    if (!user.user) {
+      return { error: 'User not authenticated' }
+    }
+
+    const { error } = await supabase
+      .from('product_inquiries')
+      .update({
+        seller_response: response,
+        status: 'responded',
+        responded_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', inquiryId)
+      .eq('seller_id', user.user.id) // Ensure only the seller can respond
+
+    if (error) {
+      throw error
+    }
+
+    return { error: null }
+  } catch (error: unknown) {
+    return { error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Update inquiry status
+export async function updateInquiryStatus(inquiryId: string, status: 'pending' | 'responded' | 'closed'): Promise<{ error: string | null }> {
+  try {
+    const { data: user } = await supabase.auth.getUser()
+    if (!user.user) {
+      return { error: 'User not authenticated' }
+    }
+
+    const { error } = await supabase
+      .from('product_inquiries')
+      .update({
+        status,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', inquiryId)
+      .eq('seller_id', user.user.id) // Ensure only the seller can update status
+
+    if (error) {
+      throw error
+    }
+
+    return { error: null }
+  } catch (error: unknown) {
+    return { error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get inquiry by ID
+export async function getInquiryById(inquiryId: string): Promise<{ data: ProductInquiryWithProduct | null, error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('product_inquiries')
+      .select(`
+        *,
+        product:products(id, name, image_url)
+      `)
+      .eq('id', inquiryId)
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    return { data, error: null }
   } catch (error: unknown) {
     return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
   }
