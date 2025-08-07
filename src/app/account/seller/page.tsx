@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import AddProductModal from "@/components/AddProductModal";
 import ProductsList from "@/components/ProductsList";
 import MainHeader from "@/components/MainHeader";
+import Footer from "@/components/Footer";
 
 export default function SellerDashboard() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
@@ -494,6 +495,9 @@ export default function SellerDashboard() {
           </div>
         </div>
       </main>
+      <Footer />
+
+      
 
       {/* Add Product Modal */}
       <AddProductModal
