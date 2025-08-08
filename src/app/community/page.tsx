@@ -446,6 +446,33 @@ function PlatformReviewForm({ onReviewSubmitted }: { onReviewSubmitted: () => vo
 
 // Platform Reviews Display Component
 function PlatformReviewsDisplay({ reviews }: { reviews: PlatformReview[] }) {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true)
+  const [reviewsPerPage, setReviewsPerPage] = useState(3)
+  const totalPages = Math.ceil(reviews.length / reviewsPerPage)
+
+  // Responsive reviews per page
+  useEffect(() => {
+    const updateReviewsPerPage = () => {
+      if (window.innerWidth < 768) {
+        setReviewsPerPage(1) // Mobile: 1 review
+      } else if (window.innerWidth < 1024) {
+        setReviewsPerPage(2) // Tablet: 2 reviews
+      } else {
+        setReviewsPerPage(3) // Desktop: 3 reviews
+      }
+    }
+
+    updateReviewsPerPage()
+    window.addEventListener('resize', updateReviewsPerPage)
+    return () => window.removeEventListener('resize', updateReviewsPerPage)
+  }, [])
+
+  // Reset to first page when reviewsPerPage changes
+  useEffect(() => {
+    setCurrentIndex(0)
+  }, [reviewsPerPage])
+
   if (reviews.length === 0) {
     return (
       <div className="text-center py-8">
@@ -455,33 +482,124 @@ function PlatformReviewsDisplay({ reviews }: { reviews: PlatformReview[] }) {
     )
   }
 
+  // Auto-play functionality
+  useEffect(() => {
+    if (!isAutoPlaying || totalPages <= 1) return
+    
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % totalPages)
+    }, 5000) // Change every 5 seconds
+
+    return () => clearInterval(interval)
+  }, [isAutoPlaying, totalPages])
+
+  const nextSlide = () => {
+    setCurrentIndex((prev) => (prev + 1) % totalPages)
+    setIsAutoPlaying(false) // Stop auto-play when user interacts
+  }
+
+  const prevSlide = () => {
+    setCurrentIndex((prev) => (prev - 1 + totalPages) % totalPages)
+    setIsAutoPlaying(false) // Stop auto-play when user interacts
+  }
+
+  const goToSlide = (index: number) => {
+    setCurrentIndex(index)
+    setIsAutoPlaying(false) // Stop auto-play when user interacts
+  }
+
+  const getCurrentReviews = () => {
+    const start = currentIndex * reviewsPerPage
+    const end = start + reviewsPerPage
+    return reviews.slice(start, end)
+  }
+
   return (
-    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {reviews.map((review) => (
-        <div key={review.id} className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h4 className="font-semibold text-gray-900">{review.reviewer_name}</h4>
-              <span className={`text-xs px-2 py-1 rounded-full ${
-                review.user_type === 'seller' 
-                  ? 'bg-purple-100 text-purple-800' 
-                  : 'bg-blue-100 text-blue-800'
-              }`}>
-                {review.user_type === 'seller' ? 'Artisan' : 'Customer'}
-              </span>
+    <div 
+      className="relative"
+      onMouseEnter={() => setIsAutoPlaying(false)}
+      onMouseLeave={() => setIsAutoPlaying(true)}
+    >
+      {/* Carousel Container */}
+      <div className="overflow-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-h-[280px]">
+          {getCurrentReviews().map((review) => (
+            <div key={review.id} className="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h4 className="font-semibold text-gray-900">{review.reviewer_name}</h4>
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    review.user_type === 'seller' 
+                      ? 'bg-purple-100 text-purple-800' 
+                      : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    {review.user_type === 'seller' ? 'Artisan' : 'Customer'}
+                  </span>
+                </div>
+                <StarRating rating={review.rating} size="sm" />
+              </div>
+              <p className="text-gray-700 text-sm mb-3 line-clamp-4">{review.review_text}</p>
+              <div className="text-xs text-gray-500">
+                {new Date(review.created_at).toLocaleDateString('en-US', {
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric'
+                })}
+              </div>
             </div>
-            <StarRating rating={review.rating} size="sm" />
-          </div>
-          <p className="text-gray-700 text-sm mb-3">{review.review_text}</p>
-          <div className="text-xs text-gray-500">
-            {new Date(review.created_at).toLocaleDateString('en-US', {
-              month: 'long',
-              day: 'numeric',
-              year: 'numeric'
-            })}
-          </div>
+          ))}
         </div>
-      ))}
+      </div>
+
+      {/* Navigation Controls - Only show if more than one page */}
+      {totalPages > 1 && (
+        <>
+          {/* Previous/Next Buttons */}
+          <button
+            onClick={prevSlide}
+            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 w-10 h-10 bg-white rounded-full shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors z-10"
+            aria-label="Previous reviews"
+          >
+            <ChevronLeft className="w-5 h-5 text-gray-600" />
+          </button>
+          
+          <button
+            onClick={nextSlide}
+            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 w-10 h-10 bg-white rounded-full shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors z-10"
+            aria-label="Next reviews"
+          >
+            <ChevronRight className="w-5 h-5 text-gray-600" />
+          </button>
+
+          {/* Dots Indicator */}
+          <div className="flex justify-center mt-6 gap-2">
+            {Array.from({ length: totalPages }).map((_, index) => (
+              <button
+                key={index}
+                onClick={() => goToSlide(index)}
+                className={`w-2 h-2 rounded-full transition-colors ${
+                  index === currentIndex
+                    ? 'bg-purple-600'
+                    : 'bg-gray-300 hover:bg-gray-400'
+                }`}
+                aria-label={`Go to page ${index + 1}`}
+              />
+            ))}
+          </div>
+
+          {/* Page Info & Auto-play Status */}
+          <div className="text-center mt-4">
+            <span className="text-sm text-gray-500">
+              {currentIndex + 1} of {totalPages} • {reviews.length} total reviews
+              {isAutoPlaying && totalPages > 1 && (
+                <span className="ml-2 text-purple-600">
+                  • Auto-playing
+                </span>
+              )}
+            </span>
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -622,7 +740,7 @@ export default function CommunityPage() {
 
             {/* Platform Reviews Display */}
             {platformReviews.length > 0 && (
-              <div>
+              <div className="px-8">
                 <div className="text-center mb-8">
                   <h3 className="text-2xl font-bold text-gray-900 mb-4">What Our Community Says About Us</h3>
                   <p className="text-gray-600">
