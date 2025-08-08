@@ -44,9 +44,9 @@ function ReviewCard({ review }: { review: ReviewForCommunity }) {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 min-w-[350px] max-w-[400px] mx-2 border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+    <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 w-full max-w-[280px] sm:min-w-[350px] sm:max-w-[400px] border border-gray-100 hover:shadow-xl transition-shadow duration-300">
       {/* Product Info */}
-      <div className="flex items-start gap-4 mb-4">
+      <div className="flex items-start gap-3 sm:gap-4 mb-4">
         <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
           <Image
             src={review.product_image_url || '/placeholder-product.jpg'}
@@ -118,17 +118,33 @@ function ReviewCard({ review }: { review: ReviewForCommunity }) {
 function ReviewsCarousel({ reviews }: { reviews: ReviewForCommunity[] }) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isAutoPlaying, setIsAutoPlaying] = useState(true)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Check if we're on mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640) // sm breakpoint
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // Calculate items per view and max index based on screen size
+  const itemsPerView = isMobile ? 1 : 3
+  const maxIndex = Math.max(0, reviews.length - itemsPerView)
 
   // Auto-advance carousel
   useEffect(() => {
-    if (!isAutoPlaying || reviews.length <= 1) return
+    if (!isAutoPlaying || reviews.length <= 1 || maxIndex === 0) return
 
     const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % Math.max(1, reviews.length - 2))
+      setCurrentIndex((prev) => (prev + 1) % (maxIndex + 1))
     }, 5000)
 
     return () => clearInterval(interval)
-  }, [isAutoPlaying, reviews.length])
+  }, [isAutoPlaying, reviews.length, maxIndex])
 
   const goToPrevious = () => {
     setCurrentIndex((prev) => Math.max(0, prev - 1))
@@ -136,7 +152,7 @@ function ReviewsCarousel({ reviews }: { reviews: ReviewForCommunity[] }) {
   }
 
   const goToNext = () => {
-    setCurrentIndex((prev) => Math.min(reviews.length - 3, prev + 1))
+    setCurrentIndex((prev) => Math.min(maxIndex, prev + 1))
     setIsAutoPlaying(false)
   }
 
@@ -150,56 +166,58 @@ function ReviewsCarousel({ reviews }: { reviews: ReviewForCommunity[] }) {
     )
   }
 
-  const canGoLeft = currentIndex > 0 && reviews.length >= 3
-  const canGoRight = currentIndex < reviews.length - 3 && reviews.length >= 3
+  const canGoLeft = currentIndex > 0 && reviews.length > itemsPerView
+  const canGoRight = currentIndex < maxIndex && reviews.length > itemsPerView
 
   return (
     <div className="relative">
-      {/* Navigation Buttons - Only show when there are 3 or more reviews */}
-      {reviews.length >= 3 && (
+      {/* Navigation Buttons - Only show when there are more reviews than can fit */}
+      {reviews.length > itemsPerView && (
         <>
           <button
             onClick={goToPrevious}
             disabled={!canGoLeft}
-            className={`absolute left-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white shadow-lg border border-gray-200 flex items-center justify-center transition-all duration-200 ${
+            className={`absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white shadow-lg border border-gray-200 flex items-center justify-center transition-all duration-200 ${
               canGoLeft
                 ? 'hover:bg-gray-50 hover:shadow-xl cursor-pointer'
                 : 'opacity-50 cursor-not-allowed'
             }`}
           >
-            <ChevronLeft className="w-6 h-6 text-gray-600" />
+            <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
           </button>
 
           <button
             onClick={goToNext}
             disabled={!canGoRight}
-            className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white shadow-lg border border-gray-200 flex items-center justify-center transition-all duration-200 ${
+            className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white shadow-lg border border-gray-200 flex items-center justify-center transition-all duration-200 ${
               canGoRight
                 ? 'hover:bg-gray-50 hover:shadow-xl cursor-pointer'
                 : 'opacity-50 cursor-not-allowed'
             }`}
           >
-            <ChevronRight className="w-6 h-6 text-gray-600" />
+            <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
           </button>
         </>
       )}
 
       {/* Carousel Container */}
-      <div className={`overflow-hidden ${reviews.length >= 3 ? 'mx-16' : 'mx-4'}`}>
+      <div className={`overflow-hidden ${reviews.length > itemsPerView ? 'mx-12 sm:mx-16' : 'mx-2 sm:mx-4'}`}>
         <div
           className={`flex transition-transform duration-500 ease-in-out ${
-            reviews.length < 3 ? 'justify-center' : ''
+            reviews.length <= itemsPerView ? 'justify-center' : ''
           }`}
           style={{
-            transform: reviews.length >= 3 ? `translateX(-${currentIndex * (100 / 3)}%)` : 'none',
+            transform: reviews.length > itemsPerView ? `translateX(-${currentIndex * (100 / itemsPerView)}%)` : 'none',
           }}
         >
           {reviews.map((review) => (
             <div 
               key={review.id} 
               className={`${
-                reviews.length >= 3 ? 'w-1/3' : 'w-auto'
-              } flex-shrink-0`}
+                reviews.length > itemsPerView ? (isMobile ? 'w-full' : 'w-1/3') : 'w-auto'
+              } flex-shrink-0 px-1 sm:px-2 ${
+                isMobile && reviews.length > itemsPerView ? 'flex justify-center' : ''
+              }`}
             >
               <ReviewCard review={review} />
             </div>
@@ -207,10 +225,10 @@ function ReviewsCarousel({ reviews }: { reviews: ReviewForCommunity[] }) {
         </div>
       </div>
 
-      {/* Indicators - Only show when there are 3 or more reviews */}
-      {reviews.length >= 3 && (
+      {/* Indicators - Only show when there are more reviews than can fit */}
+      {reviews.length > itemsPerView && (
         <div className="flex justify-center mt-6 gap-2">
-          {Array.from({ length: Math.max(1, reviews.length - 2) }).map((_, index) => (
+          {Array.from({ length: maxIndex + 1 }).map((_, index) => (
             <button
               key={index}
               onClick={() => {
