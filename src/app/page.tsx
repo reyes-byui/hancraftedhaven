@@ -97,7 +97,7 @@ export default function Home() {
           </h1>
           <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto leading-relaxed">
             Connect with talented artisans and discover unique, handmade creations that tell a story. 
-            Support independent creators while finding treasures you'll cherish forever.
+            Support independent creators while finding treasures you&apos;ll cherish forever.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link 
@@ -337,7 +337,7 @@ export default function Home() {
                   <div className="ml-auto text-yellow-500 text-xl">⭐⭐⭐⭐⭐</div>
                 </div>
                 <p className="text-[#4d5c3a] italic leading-relaxed">
-                  "The quality of handcrafted items here is exceptional! I love supporting independent artists and the stories behind each piece make them even more special."
+                  &quot;The quality of handcrafted items here is exceptional! I love supporting independent artists and the stories behind each piece make them even more special.&quot;
                 </p>
               </div>
               <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300">
@@ -352,7 +352,7 @@ export default function Home() {
                   <div className="ml-auto text-yellow-500 text-xl">⭐⭐⭐⭐⭐</div>
                 </div>
                 <p className="text-[#4d5c3a] italic leading-relaxed">
-                  "As an artisan, this platform has transformed my business. The community is supportive and customers truly appreciate handcrafted work!"
+                  &quot;As an artisan, this platform has transformed my business. The community is supportive and customers truly appreciate handcrafted work!&quot;
                 </p>
               </div>
               <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300">
@@ -367,7 +367,7 @@ export default function Home() {
                   <div className="ml-auto text-yellow-500 text-xl">⭐⭐⭐⭐⭐</div>
                 </div>
                 <p className="text-[#4d5c3a] italic leading-relaxed">
-                  "Perfect for unique gifts! Every purchase feels meaningful knowing I'm supporting real artisans. The shipping is fast and packaging beautiful too."
+                  &quot;Perfect for unique gifts! Every purchase feels meaningful knowing I&apos;m supporting real artisans. The shipping is fast and packaging beautiful too.&quot;
                 </p>
               </div>
             </div>
@@ -379,7 +379,7 @@ export default function Home() {
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-4xl md:text-5xl font-serif font-bold mb-6">Start Your Journey Today</h2>
             <p className="text-xl mb-8 opacity-90 leading-relaxed">
-              Whether you're an artisan ready to share your craft or a collector seeking unique treasures, 
+              Whether you&apos;re an artisan ready to share your craft or a collector seeking unique treasures, 
               your perfect match awaits at Handcrafted Haven.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
