@@ -150,67 +150,80 @@ function ReviewsCarousel({ reviews }: { reviews: ReviewForCommunity[] }) {
     )
   }
 
-  const canGoLeft = currentIndex > 0
-  const canGoRight = currentIndex < reviews.length - 3
+  const canGoLeft = currentIndex > 0 && reviews.length >= 3
+  const canGoRight = currentIndex < reviews.length - 3 && reviews.length >= 3
 
   return (
     <div className="relative">
-      {/* Navigation Buttons */}
-      <button
-        onClick={goToPrevious}
-        disabled={!canGoLeft}
-        className={`absolute left-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white shadow-lg border border-gray-200 flex items-center justify-center transition-all duration-200 ${
-          canGoLeft
-            ? 'hover:bg-gray-50 hover:shadow-xl cursor-pointer'
-            : 'opacity-50 cursor-not-allowed'
-        }`}
-      >
-        <ChevronLeft className="w-6 h-6 text-gray-600" />
-      </button>
+      {/* Navigation Buttons - Only show when there are 3 or more reviews */}
+      {reviews.length >= 3 && (
+        <>
+          <button
+            onClick={goToPrevious}
+            disabled={!canGoLeft}
+            className={`absolute left-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white shadow-lg border border-gray-200 flex items-center justify-center transition-all duration-200 ${
+              canGoLeft
+                ? 'hover:bg-gray-50 hover:shadow-xl cursor-pointer'
+                : 'opacity-50 cursor-not-allowed'
+            }`}
+          >
+            <ChevronLeft className="w-6 h-6 text-gray-600" />
+          </button>
 
-      <button
-        onClick={goToNext}
-        disabled={!canGoRight}
-        className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white shadow-lg border border-gray-200 flex items-center justify-center transition-all duration-200 ${
-          canGoRight
-            ? 'hover:bg-gray-50 hover:shadow-xl cursor-pointer'
-            : 'opacity-50 cursor-not-allowed'
-        }`}
-      >
-        <ChevronRight className="w-6 h-6 text-gray-600" />
-      </button>
+          <button
+            onClick={goToNext}
+            disabled={!canGoRight}
+            className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white shadow-lg border border-gray-200 flex items-center justify-center transition-all duration-200 ${
+              canGoRight
+                ? 'hover:bg-gray-50 hover:shadow-xl cursor-pointer'
+                : 'opacity-50 cursor-not-allowed'
+            }`}
+          >
+            <ChevronRight className="w-6 h-6 text-gray-600" />
+          </button>
+        </>
+      )}
 
       {/* Carousel Container */}
-      <div className="overflow-hidden mx-16">
+      <div className={`overflow-hidden ${reviews.length >= 3 ? 'mx-16' : 'mx-4'}`}>
         <div
-          className="flex transition-transform duration-500 ease-in-out"
+          className={`flex transition-transform duration-500 ease-in-out ${
+            reviews.length < 3 ? 'justify-center' : ''
+          }`}
           style={{
-            transform: `translateX(-${currentIndex * (100 / 3)}%)`,
+            transform: reviews.length >= 3 ? `translateX(-${currentIndex * (100 / 3)}%)` : 'none',
           }}
         >
           {reviews.map((review) => (
-            <div key={review.id} className="w-1/3 flex-shrink-0">
+            <div 
+              key={review.id} 
+              className={`${
+                reviews.length >= 3 ? 'w-1/3' : 'w-auto'
+              } flex-shrink-0`}
+            >
               <ReviewCard review={review} />
             </div>
           ))}
         </div>
       </div>
 
-      {/* Indicators */}
-      <div className="flex justify-center mt-6 gap-2">
-        {Array.from({ length: Math.max(1, reviews.length - 2) }).map((_, index) => (
-          <button
-            key={index}
-            onClick={() => {
-              setCurrentIndex(index)
-              setIsAutoPlaying(false)
-            }}
-            className={`w-2 h-2 rounded-full transition-colors duration-200 ${
-              index === currentIndex ? 'bg-purple-600' : 'bg-gray-300'
-            }`}
-          />
-        ))}
-      </div>
+      {/* Indicators - Only show when there are 3 or more reviews */}
+      {reviews.length >= 3 && (
+        <div className="flex justify-center mt-6 gap-2">
+          {Array.from({ length: Math.max(1, reviews.length - 2) }).map((_, index) => (
+            <button
+              key={index}
+              onClick={() => {
+                setCurrentIndex(index)
+                setIsAutoPlaying(false)
+              }}
+              className={`w-2 h-2 rounded-full transition-colors duration-200 ${
+                index === currentIndex ? 'bg-purple-600' : 'bg-gray-300'
+              }`}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Auto-play indicator */}
       <div className="text-center mt-4">
