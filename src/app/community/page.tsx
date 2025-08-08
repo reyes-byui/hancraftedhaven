@@ -473,15 +473,6 @@ function PlatformReviewsDisplay({ reviews }: { reviews: PlatformReview[] }) {
     setCurrentIndex(0)
   }, [reviewsPerPage])
 
-  if (reviews.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <MessageCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <p className="text-gray-500">No platform reviews yet. Be the first to share your experience!</p>
-      </div>
-    )
-  }
-
   // Auto-play functionality
   useEffect(() => {
     if (!isAutoPlaying || totalPages <= 1) return
@@ -492,6 +483,15 @@ function PlatformReviewsDisplay({ reviews }: { reviews: PlatformReview[] }) {
 
     return () => clearInterval(interval)
   }, [isAutoPlaying, totalPages])
+
+  if (reviews.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <MessageCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+        <p className="text-gray-500">No platform reviews yet. Be the first to share your experience!</p>
+      </div>
+    )
+  }
 
   const nextSlide = () => {
     setCurrentIndex((prev) => (prev + 1) % totalPages)
