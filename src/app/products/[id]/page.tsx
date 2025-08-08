@@ -8,6 +8,8 @@ import MainHeader from '@/components/MainHeader';
 import Footer from '@/components/Footer';
 import ProductImageGallery from '@/components/ProductImageGallery';
 import ProductInquiryModal from '@/components/ProductInquiryModal';
+import MessageSellerButton from '@/components/MessageSellerButton';
+import ProductReviews from '@/components/ProductReviews';
 import { getCurrentUserWithProfile, getProductById, getSellerProfile, addToCart, getProductWithImages, type Product, type SellerProfile, type ProductWithImages } from '@/lib/supabase';
 
 export default function ProductDetailPage() {
@@ -150,9 +152,6 @@ export default function ProductDetailPage() {
                   sizes="(max-width: 768px) 100vw, 50vw"
                   className="object-cover"
                 />
-                <div className="absolute bottom-3 right-3 bg-blue-500 text-white px-2 py-1 rounded text-xs">
-                  💡 Run SQL to enable multiple images
-                </div>
               </div>
             )}
           </div>
@@ -255,8 +254,18 @@ export default function ProductDetailPage() {
                 </button>
               )}
 
-              {/* Send Inquiry Button */}
-              {currentUser && currentUser.role === 'customer' && (
+              {/* Modern Messaging Button - Available to all logged-in users */}
+              {currentUser && seller && (
+                <MessageSellerButton
+                  sellerId={seller.id}
+                  productId={product.id}
+                  productName={product.name}
+                  className="w-full"
+                />
+              )}
+
+              {/* Legacy Send Inquiry Button - Keep for users who haven't run messaging setup */}
+              {currentUser && currentUser.role === 'customer' && !seller && (
                 <button
                   onClick={() => setShowInquiryModal(true)}
                   className="w-full bg-[#4d5c3a] text-white py-2 px-6 rounded-lg font-medium hover:bg-[#3d4a2e] transition-colors"
@@ -269,9 +278,9 @@ export default function ProductDetailPage() {
               {!product.images && (
                 <div className="text-center p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-blue-800 text-sm">
-                    💡 <strong>Setup Required:</strong> Run the SQL script to enable multiple images and inquiries!
+                    💡 <strong>Setup Required:</strong> Run the SQL scripts to enable multiple images, inquiries, and messaging!
                     <br />
-                    Check <code className="bg-blue-100 px-1 rounded">docs/MULTIPLE_IMAGES_AND_INQUIRIES_SETUP.sql</code>
+                    Check <code className="bg-blue-100 px-1 rounded">docs/COMPLETE_MESSAGING_SYSTEM_GUIDE.md</code>
                   </p>
                 </div>
               )}
@@ -286,8 +295,15 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
+        {/* Product Reviews Section */}
+        {product && (
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <ProductReviews productId={product.id} />
+          </div>
+        )}
+
         {/* Product Inquiry Modal */}
-        {showInquiryModal && currentUser && seller && (
+        {showInquiryModal && currentUser && seller && product && (
           <ProductInquiryModal
             isOpen={showInquiryModal}
             onClose={() => setShowInquiryModal(false)}

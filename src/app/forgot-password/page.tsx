@@ -14,7 +14,7 @@ export default function ForgotPasswordPage() {
         <form className="flex flex-col gap-4">
           <label className="flex flex-col gap-1">
             <span className="text-[#4d5c3a] font-medium">Email</span>
-            <input type="email" className="border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#bfa76a]" required />
+            <input type="email" className="border rounded px-3 py-2 text-black focus:outline-none focus:ring-2 focus:ring-[#bfa76a]" required />
           </label>
           <button type="submit" className="bg-[#a3b18a] hover:bg-[#8d6748] text-white font-semibold rounded-full px-6 py-2 mt-2 transition-colors">Send Reset Link</button>
         </form>

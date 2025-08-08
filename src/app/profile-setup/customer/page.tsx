@@ -148,7 +148,7 @@ function CustomerProfileSetupForm() {
                 type="text" 
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#bfa76a]" 
+                className="border rounded px-3 py-2 text-black focus:outline-none focus:ring-2 focus:ring-[#bfa76a]" 
                 required 
               />
             </label>
@@ -158,7 +158,7 @@ function CustomerProfileSetupForm() {
                 type="text" 
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#bfa76a]" 
+                className="border rounded px-3 py-2 text-black focus:outline-none focus:ring-2 focus:ring-[#bfa76a]" 
                 required 
               />
             </label>
@@ -170,7 +170,7 @@ function CustomerProfileSetupForm() {
               type="text" 
               value={country}
               onChange={(e) => setCountry(e.target.value)}
-              className="border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#bfa76a]" 
+              className="border rounded px-3 py-2 text-black focus:outline-none focus:ring-2 focus:ring-[#bfa76a]" 
               required 
               placeholder="e.g., United States"
             />
@@ -181,7 +181,7 @@ function CustomerProfileSetupForm() {
             <textarea 
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              className="border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#bfa76a] resize-none h-20" 
+              className="border rounded px-3 py-2 text-black focus:outline-none focus:ring-2 focus:ring-[#bfa76a] resize-none h-20" 
               required
               placeholder="Your full address"
             />
@@ -193,7 +193,7 @@ function CustomerProfileSetupForm() {
               type="tel" 
               value={contactNumber}
               onChange={(e) => setContactNumber(e.target.value)}
-              className="border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#bfa76a]" 
+              className="border rounded px-3 py-2 text-black focus:outline-none focus:ring-2 focus:ring-[#bfa76a]" 
               placeholder="Your phone number"
             />
           </label>

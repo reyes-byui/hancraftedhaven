@@ -216,6 +216,18 @@ export default function OrderHistoryPage() {
                                   <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getItemStatusColor(item.status || 'pending')}`}>
                                     {getItemStatusText(item.status || 'pending')}
                                   </span>
+                                  
+                                  {/* Review Button for Delivered Items */}
+                                  {item.status === 'delivered' && (
+                                    <div className="mt-2">
+                                      <Link
+                                        href={`/review-product?productId=${item.product_id}&orderItemId=${item.id}&productName=${encodeURIComponent(item.product_name || 'Product')}`}
+                                        className="inline-block bg-purple-600 text-white px-3 py-1 rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                                      >
+                                        ⭐ Write Review
+                                      </Link>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>

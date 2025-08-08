@@ -228,7 +228,7 @@ export type OrderItem = {
   order_id: string
   product_id: string
   seller_id: string
-  customer_id?: string // Added for RLS policies
+  customer_id?: string, // Added for RLS policies
   product_name: string
   product_price: number
   quantity: number
@@ -2572,6 +2572,779 @@ export async function getProductById(productId: string): Promise<{ data: Product
     }
 
     return { data, error: null }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// =============================================
+// MESSAGING SYSTEM TYPES AND FUNCTIONS
+// =============================================
+
+// Messaging Types
+export interface Conversation {
+  id: string
+  customer_id: string
+  seller_id: string
+  product_id?: string
+  subject: string
+  status: 'active' | 'closed' | 'archived'
+  last_message_at: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Message {
+  id: string
+  conversation_id: string
+  sender_id: string
+  sender_type: 'customer' | 'seller'
+  message_text: string
+  attachment_url?: string
+  attachment_type?: string
+  is_read: boolean
+  read_at?: string
+  created_at: string
+}
+
+export interface ConversationWithDetails extends Conversation {
+  customer_profile?: CustomerProfile
+  seller_profile?: SellerProfile
+  product?: Product
+  unread_count?: number
+  last_message?: Message
+}
+
+export interface MessageWithSender extends Message {
+  sender_profile?: CustomerProfile | SellerProfile
+}
+
+// Create or get existing conversation
+export async function getOrCreateConversation(
+  customerId: string,
+  sellerId: string,
+  productId?: string,
+  subject: string = 'General Inquiry'
+): Promise<{ data: string | null, error: string | null }> {
+  try {
+    console.log('🔄 Creating conversation:', { customerId, sellerId, productId, subject })
+    
+    const { data, error } = await supabase.rpc('get_or_create_conversation', {
+      p_customer_id: customerId,
+      p_seller_id: sellerId,
+      p_product_id: productId || null,
+      p_subject: subject
+    })
+
+    if (error) {
+      console.error('❌ Supabase RPC error:', error)
+      console.error('❌ Error details:', JSON.stringify(error, null, 2))
+      
+      // Check for specific error types
+      if (error.message?.includes('function get_or_create_conversation') || 
+          error.code === '42883') {
+        return { 
+          data: null, 
+          error: 'Messaging system database functions not set up. Please run docs/SAFE_MESSAGING_SETUP.sql in your Supabase dashboard.' 
+        }
+      }
+      
+      if (error.message?.includes('conversations') && error.message?.includes('does not exist')) {
+        return { 
+          data: null, 
+          error: 'Conversations table does not exist. Please run docs/SAFE_MESSAGING_SETUP.sql in your Supabase dashboard.' 
+        }
+      }
+      
+      throw error
+    }
+
+    console.log('✅ Conversation created/found:', data)
+    return { data, error: null }
+  } catch (error: unknown) {
+    console.error('❌ getOrCreateConversation exception:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('❌ Full error details:', JSON.stringify(error, null, 2))
+    
+    return { data: null, error: `Detailed error: ${errorMessage}` }
+  }
+}
+
+// Send a message
+export async function sendMessage(
+  conversationId: string,
+  senderId: string,
+  senderType: 'customer' | 'seller',
+  messageText: string,
+  attachmentUrl?: string,
+  attachmentType?: string
+): Promise<{ data: Message | null, error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: conversationId,
+        sender_id: senderId,
+        sender_type: senderType,
+        message_text: messageText,
+        attachment_url: attachmentUrl,
+        attachment_type: attachmentType
+      })
+      .select()
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    return { data, error: null }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get conversations for a user
+export async function getUserConversations(
+  userId: string,
+  userType: 'customer' | 'seller'
+): Promise<{ data: ConversationWithDetails[], error: string | null }> {
+  try {
+    const field = userType === 'customer' ? 'customer_id' : 'seller_id'
+    const otherField = userType === 'customer' ? 'seller_id' : 'customer_id'
+    const otherProfileTable = userType === 'customer' ? 'seller_profiles' : 'customer_profiles'
+
+    const { data, error } = await supabase
+      .from('conversations')
+      .select(`
+        *,
+        ${otherProfileTable}:${otherField} (*),
+        products (*),
+        messages (
+          id,
+          message_text,
+          sender_type,
+          is_read,
+          created_at
+        )
+      `)
+      .eq(field, userId)
+      .order('last_message_at', { ascending: false })
+
+    if (error) {
+      throw error
+    }
+
+    // Process the data to include unread count and last message
+    const processedData = (data || []).map(conv => {
+      const messages = conv.messages || []
+      const unreadMessages = messages.filter((msg: any) => !msg.is_read && msg.sender_type !== userType)
+      const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null
+
+      return {
+        ...conv,
+        [userType === 'customer' ? 'seller_profile' : 'customer_profile']: conv[otherProfileTable],
+        unread_count: unreadMessages.length,
+        last_message: lastMessage,
+        messages: undefined // Remove messages array to clean up response
+      }
+    })
+
+    return { data: processedData, error: null }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    
+    // Check if it's a table not found error and provide helpful message
+    if (errorMessage.includes('relation "public.conversations" does not exist') || 
+        errorMessage.includes('conversations') && errorMessage.includes('does not exist')) {
+      return { 
+        data: [], 
+        error: 'Messaging tables not set up. Please run docs/MESSAGING_SYSTEM_SETUP.sql in your Supabase dashboard.' 
+      }
+    }
+    
+    return { data: [], error: errorMessage }
+  }
+}
+
+// Get messages for a conversation
+export async function getConversationMessages(
+  conversationId: string,
+  limit: number = 50
+): Promise<{ data: MessageWithSender[], error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('messages')
+      .select(`
+        *,
+        customer_profiles!messages_sender_id_fkey (*),
+        seller_profiles!messages_sender_id_fkey (*)
+      `)
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true })
+      .limit(limit)
+
+    if (error) {
+      throw error
+    }
+
+    // Process data to include correct sender profile
+    const processedData = (data || []).map(msg => ({
+      ...msg,
+      sender_profile: msg.sender_type === 'customer' 
+        ? msg.customer_profiles 
+        : msg.seller_profiles,
+      customer_profiles: undefined,
+      seller_profiles: undefined
+    }))
+
+    return { data: processedData, error: null }
+  } catch (error: unknown) {
+    return { data: [], error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Mark messages as read
+export async function markMessagesAsRead(
+  conversationId: string,
+  userId: string
+): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase.rpc('mark_messages_as_read', {
+      p_conversation_id: conversationId,
+      p_user_id: userId
+    })
+
+    if (error) {
+      throw error
+    }
+
+    return { error: null }
+  } catch (error: unknown) {
+    return { error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get unread message count
+export async function getUnreadMessageCount(
+  userId: string
+): Promise<{ data: number, error: string | null }> {
+  try {
+    const { data, error } = await supabase.rpc('get_unread_message_count', {
+      user_id: userId
+    })
+
+    if (error) {
+      throw error
+    }
+
+    return { data: data || 0, error: null }
+  } catch (error: unknown) {
+    return { data: 0, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Upload message attachment
+export async function uploadMessageAttachment(
+  file: File,
+  userId: string,
+  conversationId: string
+): Promise<{ data: string | null, error: string | null }> {
+  try {
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${userId}/${conversationId}/${Date.now()}.${fileExt}`
+
+    const { data, error } = await supabase.storage
+      .from('message-attachments')
+      .upload(fileName, file)
+
+    if (error) {
+      throw error
+    }
+
+    const { data: urlData } = supabase.storage
+      .from('message-attachments')
+      .getPublicUrl(data.path)
+
+    return { data: urlData.publicUrl, error: null }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Close/Archive conversation
+export async function updateConversationStatus(
+  conversationId: string,
+  status: 'active' | 'closed' | 'archived'
+): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase
+      .from('conversations')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', conversationId)
+
+    if (error) {
+      throw error
+    }
+
+    return { error: null }
+  } catch (error: unknown) {
+    return { error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// =============================================
+// ADMIN CONTACT SYSTEM TYPES AND FUNCTIONS
+// =============================================
+
+export type AdminContact = {
+  id: string
+  name: string
+  email: string
+  user_type: 'customer' | 'seller' | 'visitor'
+  subject: string
+  message: string
+  status: 'new' | 'in_progress' | 'resolved' | 'closed'
+  priority: 'low' | 'normal' | 'high' | 'urgent'
+  admin_response?: string
+  admin_notes?: string
+  responded_at?: string
+  responded_by?: string
+  created_at: string
+  updated_at: string
+}
+
+export type AdminContactFormData = {
+  name: string
+  email: string
+  user_type: 'customer' | 'seller' | 'visitor'
+  subject: string
+  message: string
+}
+
+// Submit a contact message to admin
+export async function submitAdminContact(
+  contactData: AdminContactFormData
+): Promise<{ data: string | null, error: string | null }> {
+  try {
+    const { data, error } = await supabase.rpc('submit_admin_contact', {
+      p_name: contactData.name,
+      p_email: contactData.email,
+      p_user_type: contactData.user_type,
+      p_subject: contactData.subject,
+      p_message: contactData.message
+    })
+
+    if (error) {
+      console.error('Supabase error submitting admin contact:', error)
+      
+      // Check for specific error types
+      if (error.message?.includes('function submit_admin_contact') || 
+          error.code === '42883') {
+        return { 
+          data: null, 
+          error: 'Admin contact system not set up. Please run docs/ADMIN_CONTACT_SYSTEM_SETUP.sql in your Supabase dashboard.' 
+        }
+      }
+      
+      throw error
+    }
+
+    return { data, error: null }
+  } catch (error: unknown) {
+    console.error('submitAdminContact exception:', error)
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get admin contacts (for admin dashboard)
+export async function getAdminContacts(
+  status?: string,
+  limit: number = 50,
+  offset: number = 0
+): Promise<{ data: AdminContact[], error: string | null }> {
+  try {
+    const { data, error } = await supabase.rpc('get_admin_contacts', {
+      p_status: status || null,
+      p_limit: limit,
+      p_offset: offset
+    })
+
+    if (error) {
+      throw error
+    }
+
+    return { data: data || [], error: null }
+  } catch (error: unknown) {
+    return { data: [], error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Update admin contact response
+export async function updateAdminContactResponse(
+  contactId: string,
+  status?: string,
+  adminResponse?: string,
+  adminNotes?: string,
+  priority?: string
+): Promise<{ error: string | null }> {
+  try {
+    const { data, error } = await supabase.rpc('update_admin_contact_response', {
+      p_contact_id: contactId,
+      p_status: status || null,
+      p_admin_response: adminResponse || null,
+      p_admin_notes: adminNotes || null,
+      p_priority: priority || null
+    })
+
+    if (error) {
+      throw error
+    }
+
+    if (!data) {
+      return { error: 'Contact not found or update failed' }
+    }
+
+    return { error: null }
+  } catch (error: unknown) {
+    return { error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get admin contact statistics
+export async function getAdminContactStats(): Promise<{ 
+  data: {
+    total_contacts: number
+    new_contacts: number
+    in_progress_contacts: number
+    resolved_contacts: number
+    closed_contacts: number
+    urgent_contacts: number
+    high_priority_contacts: number
+  } | null, 
+  error: string | null 
+}> {
+  try {
+    const { data, error } = await supabase.rpc('get_admin_contact_stats')
+
+    if (error) {
+      throw error
+    }
+
+    return { data: data?.[0] || null, error: null }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Product Review Types
+export interface ProductReview {
+  id: string;
+  product_id: string;
+  customer_id: string;
+  order_item_id: string;
+  rating: number;
+  comment?: string;
+  is_anonymous: boolean;
+  display_name?: string;
+  is_verified_purchase: boolean;
+  helpful_count: number;
+  reported_count: number;
+  status: 'pending' | 'approved' | 'rejected' | 'hidden';
+  seller_response?: string;
+  seller_responded_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReviewHelpfulness {
+  id: string;
+  review_id: string;
+  customer_id: string;
+  is_helpful: boolean;
+  created_at: string;
+}
+
+export interface ProductRatingSummary {
+  average_rating: number;
+  total_reviews: number;
+  rating_5_count: number;
+  rating_4_count: number;
+  rating_3_count: number;
+  rating_2_count: number;
+  rating_1_count: number;
+}
+
+export interface ReviewForCommunity {
+  id: string;
+  product_id: string;
+  product_name: string;
+  product_image_url: string;
+  rating: number;
+  comment: string;
+  is_anonymous: boolean;
+  display_name?: string;
+  helpful_count: number;
+  created_at: string;
+  seller_name: string;
+  seller_business_name?: string;
+}
+
+export interface ReviewFormData {
+  product_id: string;
+  order_item_id: string;
+  rating: number;
+  comment?: string;
+  is_anonymous: boolean;
+}
+
+export interface CanReviewResponse {
+  can_review: boolean;
+  order_item_id?: string;
+  reason: string;
+}
+
+// Submit a product review
+export async function submitProductReview(reviewData: ReviewFormData): Promise<{ 
+  data: string | null, 
+  error: string | null 
+}> {
+  try {
+    const { data, error } = await supabase.rpc('submit_product_review', {
+      p_product_id: reviewData.product_id,
+      p_order_item_id: reviewData.order_item_id,
+      p_rating: reviewData.rating,
+      p_comment: reviewData.comment || null,
+      p_is_anonymous: reviewData.is_anonymous
+    })
+
+    if (error) {
+      throw error
+    }
+
+    return { data, error: null }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get product reviews
+export async function getProductReviews(
+  productId: string,
+  limit: number = 10,
+  offset: number = 0,
+  orderBy: 'newest' | 'oldest' | 'highest_rated' | 'lowest_rated' | 'most_helpful' = 'newest'
+): Promise<{ 
+  data: (ProductReview & { is_own_review: boolean })[] | null, 
+  error: string | null 
+}> {
+  try {
+    const { data, error } = await supabase.rpc('get_product_reviews', {
+      p_product_id: productId,
+      p_limit: limit,
+      p_offset: offset,
+      p_order_by: orderBy
+    })
+
+    if (error) {
+      throw error
+    }
+
+    return { data: data || [], error: null }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get recent reviews for community page
+export async function getRecentReviewsForCommunity(limit: number = 20): Promise<{ 
+  data: ReviewForCommunity[] | null, 
+  error: string | null 
+}> {
+  try {
+    // First try to use the database function
+    const { data, error } = await supabase.rpc('get_recent_reviews_for_community', {
+      p_limit: limit
+    })
+
+    if (error) {
+      // If function doesn't exist, try direct table query
+      if (error.message.includes('function') || error.message.includes('does not exist')) {
+        console.warn('Function get_recent_reviews_for_community not found, trying direct query')
+        
+        const { data: directData, error: directError } = await supabase
+          .from('product_reviews')
+          .select(`
+            id,
+            product_id,
+            rating,
+            comment,
+            is_anonymous,
+            display_name,
+            helpful_count,
+            created_at,
+            product:products(
+              id,
+              name,
+              image_url,
+              seller:seller_profiles(
+                first_name,
+                last_name,
+                business_name
+              )
+            )
+          `)
+          .eq('status', 'approved')
+          .not('comment', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(limit)
+
+        if (directError) {
+          // If product_reviews table doesn't exist either, return empty array
+          if (directError.message.includes('relation') && directError.message.includes('does not exist')) {
+            return { data: [], error: 'Product review system not yet set up. Please run the PRODUCT_REVIEW_SYSTEM_SETUP.sql file.' }
+          }
+          throw directError
+        }
+
+        // Transform the data to match expected format
+        const transformedData = (directData || []).map(review => ({
+          id: review.id,
+          product_id: review.product_id,
+          product_name: review.product?.name || 'Unknown Product',
+          product_image_url: review.product?.image_url || '',
+          rating: review.rating,
+          comment: review.comment,
+          is_anonymous: review.is_anonymous,
+          display_name: review.display_name,
+          helpful_count: review.helpful_count,
+          created_at: review.created_at,
+          seller_name: review.product?.seller ? 
+            `${review.product.seller.first_name || ''} ${review.product.seller.last_name || ''}`.trim() || 'Unknown Seller' : 
+            'Unknown Seller',
+          seller_business_name: review.product?.seller?.business_name || null
+        }))
+
+        return { data: transformedData, error: null }
+      }
+      throw error
+    }
+
+    return { data: data || [], error: null }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get product rating summary
+export async function getProductRatingSummary(productId: string): Promise<{ 
+  data: ProductRatingSummary | null, 
+  error: string | null 
+}> {
+  try {
+    const { data, error } = await supabase.rpc('get_product_rating_summary', {
+      p_product_id: productId
+    })
+
+    if (error) {
+      throw error
+    }
+
+    return { data: data?.[0] || null, error: null }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Check if customer can review a product
+export async function canCustomerReviewProduct(
+  productId: string,
+  customerId?: string
+): Promise<{ 
+  data: CanReviewResponse | null, 
+  error: string | null 
+}> {
+  try {
+    const { data, error } = await supabase.rpc('can_customer_review_product', {
+      p_product_id: productId,
+      p_customer_id: customerId || undefined
+    })
+
+    if (error) {
+      throw error
+    }
+
+    return { data: data?.[0] || null, error: null }
+  } catch (error: unknown) {
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+// Get customer's delivered orders for a product (to enable reviews)
+export async function getCustomerDeliveredOrders(customerId?: string): Promise<{ 
+  data: (OrderItem & { 
+    product: Pick<Product, 'id' | 'name' | 'image_url'>,
+    can_review: boolean,
+    has_reviewed: boolean
+  })[] | null, 
+  error: string | null 
+}> {
+  try {
+    // Get current user if customerId not provided
+    let userId = customerId
+    if (!userId) {
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) {
+        return { data: null, error: 'Authentication required' }
+      }
+      userId = user.id
+    }
+
+    const { data: orderItems, error: orderError } = await supabase
+      .from('order_items')
+      .select(`
+        *,
+        product:products(id, name, image_url)
+      `)
+      .eq('customer_id', userId)
+      .eq('status', 'delivered')
+      .order('created_at', { ascending: false })
+
+    if (orderError) {
+      throw orderError
+    }
+
+    if (!orderItems) {
+      return { data: [], error: null }
+    }
+
+    // Check which products have been reviewed
+    const productIds = orderItems.map(item => item.product_id)
+    
+    let existingReviews: any[] = []
+    if (productIds.length > 0) {
+      const { data: reviews, error: reviewError } = await supabase
+        .from('product_reviews')
+        .select('product_id, order_item_id')
+        .eq('customer_id', userId)
+        .in('product_id', productIds)
+
+      if (reviewError) {
+        // If product_reviews table doesn't exist, that's fine - no reviews yet
+        console.warn('Product reviews table not found:', reviewError.message)
+      } else {
+        existingReviews = reviews || []
+      }
+    }
+
+    const reviewedItems = new Set(existingReviews.map(r => r.order_item_id))
+
+    const enrichedItems = orderItems.map(item => ({
+      ...item,
+      can_review: true,
+      has_reviewed: reviewedItems.has(item.id)
+    }))
+
+    return { data: enrichedItems, error: null }
   } catch (error: unknown) {
     return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
   }

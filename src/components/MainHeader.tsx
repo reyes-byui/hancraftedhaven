@@ -123,6 +123,13 @@ export default function MainHeader() {
             <Link href="/" className="text-[#8d6748] hover:underline hover:text-[#6b5235] transition-colors">Home</Link>
             <Link href="/sellers" className="text-[#8d6748] hover:underline hover:text-[#6b5235] transition-colors">Sellers</Link>
             <Link href="/listings" className="text-[#8d6748] hover:underline hover:text-[#6b5235] transition-colors">Listings</Link>
+            <Link href="/community" className="text-[#8d6748] hover:underline hover:text-[#6b5235] transition-colors">Community</Link>
+            {user && (
+              <Link href="/messages" className="text-[#8d6748] hover:underline hover:text-[#6b5235] transition-colors relative">
+                Messages
+                {/* Add unread indicator here in the future */}
+              </Link>
+            )}
             <Link href="/about" className="text-[#8d6748] hover:underline hover:text-[#6b5235] transition-colors">About</Link>
             <Link href="/contact" className="text-[#8d6748] hover:underline hover:text-[#6b5235] transition-colors">Contact</Link>
           </nav>
@@ -191,6 +198,22 @@ export default function MainHeader() {
           >
             Listings
           </Link>
+          <Link 
+            href="/community" 
+            className="text-[#8d6748] hover:underline text-lg font-medium py-2 text-center"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            Community
+          </Link>
+          {user && (
+            <Link 
+              href="/messages" 
+              className="text-[#8d6748] hover:underline text-lg font-medium py-2 text-center"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Messages
+            </Link>
+          )}
           <Link 
             href="/about" 
             className="text-[#8d6748] hover:underline text-lg font-medium py-2 text-center"

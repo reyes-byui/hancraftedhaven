@@ -110,6 +110,12 @@ export default function CustomerDashboard() {
               <p className="text-[#4d5c3a]">View your past purchases and track current orders.</p>
             </Link>
 
+            {/* Review Products */}
+            <Link href="/my-reviews" className="bg-[#f8f5f2] hover:bg-[#f0ede8] p-6 rounded-lg transition-colors border">
+              <h3 className="text-xl font-semibold text-[#8d6748] mb-2">⭐ Review Products</h3>
+              <p className="text-[#4d5c3a]">Share your experience with delivered products and help the community.</p>
+            </Link>
+
             {/* Favorites */}
             <Link href="/account/customer/favorites" className="bg-[#f8f5f2] hover:bg-[#f0ede8] p-6 rounded-lg transition-colors border">
               <h3 className="text-xl font-semibold text-[#8d6748] mb-2">Favorites</h3>
