@@ -416,12 +416,27 @@ export default function SellerDashboard() {
                   <p className="text-sm text-gray-500 mt-2">Coming soon...</p>
                 </div>
 
-                {/* Profile Settings */}
-                <div className="bg-[#f8f5f2] p-6 rounded-lg border">
-                  <h3 className="text-xl font-semibold text-[#8d6748] mb-2">Business Profile</h3>
-                  <p className="text-[#4d5c3a]">Update your business information and settings.</p>
-                  <p className="text-sm text-gray-500 mt-2">Coming soon...</p>
-                </div>
+                {/* Business Profile */}
+                <button
+                  onClick={() => setActiveTab('profile')}
+                  className="bg-[#f8f5f2] hover:bg-[#f0ede8] p-6 rounded-lg border transition-colors text-left"
+                >
+                  <div className="text-center">
+                    <div className="text-4xl mb-3">👤</div>
+                    <h3 className="text-xl font-semibold text-[#8d6748] mb-2">Business Profile</h3>
+                    <p className="text-[#4d5c3a]">Update your business information and settings.</p>
+                    <div className="mt-2 flex gap-2 justify-center">
+                      <span className="inline-block px-2 py-1 bg-[#a3b18a] text-white text-xs rounded">
+                        ✓ Active
+                      </span>
+                      {(!profile?.business_name || !profile?.business_address || !profile?.business_description) && (
+                        <span className="inline-block px-2 py-1 bg-yellow-500 text-white text-xs rounded">
+                          ⚠ Incomplete
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </button>
 
                 {/* Community */}
                 <Link href="/community" className="bg-[#f8f5f2] hover:bg-[#f0ede8] p-6 rounded-lg transition-colors border">
