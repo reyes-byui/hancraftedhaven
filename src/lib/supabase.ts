@@ -2856,7 +2856,7 @@ export async function getConversationMessages(
       .filter((id, index, arr) => arr.indexOf(id) === index)
 
     // Fetch customer profiles
-    let customerProfiles: any[] = []
+    let customerProfiles: CustomerProfile[] = []
     if (customerIds.length > 0) {
       const { data: custData } = await supabase
         .from('customer_profiles')
@@ -2866,7 +2866,7 @@ export async function getConversationMessages(
     }
 
     // Fetch seller profiles
-    let sellerProfiles: any[] = []
+    let sellerProfiles: SellerProfile[] = []
     if (sellerIds.length > 0) {
       const { data: sellData } = await supabase
         .from('seller_profiles')
