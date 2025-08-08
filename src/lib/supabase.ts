@@ -2459,6 +2459,61 @@ export async function updateCustomerProfile(profileData: {
   }
 }
 
+// Update seller profile
+export async function updateSellerProfile(profileData: {
+  first_name?: string;
+  last_name?: string;
+  business_name?: string;
+  business_address?: string;
+  contact_number?: string;
+  country?: string;
+  business_description?: string;
+}): Promise<{ error: string | null }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { error: 'Not authenticated' }
+    }
+
+    // Try unified profile table first
+    try {
+      const { error } = await supabase
+        .from('profile')
+        .upsert({
+          id: user.id,
+          role: 'seller', // Ensure role is set for new profiles
+          ...profileData,
+          updated_at: new Date().toISOString()
+        })
+
+      if (!error) {
+        return { error: null }
+      }
+      
+      // If unified table fails, fall back to seller_profiles
+      throw error
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_unifiedError) {
+      // Fall back to seller_profiles table
+      const { error } = await supabase
+        .from('seller_profiles')
+        .upsert({
+          id: user.id,
+          ...profileData,
+          updated_at: new Date().toISOString()
+        })
+
+      if (error) {
+        return { error: error.message }
+      }
+
+      return { error: null }
+    }
+  } catch (error: unknown) {
+    return { error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
 // Get top sellers by revenue (from delivered orders only)
 export async function getTopSellers(limit: number = 3): Promise<{ data: TopSeller[], error: string | null }> {
   try {

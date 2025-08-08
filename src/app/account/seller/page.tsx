@@ -29,7 +29,7 @@ export default function SellerDashboard() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [inquiriesLoading, setInquiriesLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'inquiries'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'inquiries' | 'profile'>('overview');
   const [updatingOrderItemId, setUpdatingOrderItemId] = useState<string | null>(null);
   const [respondingToInquiry, setRespondingToInquiry] = useState<string | null>(null);
   const [inquiryResponse, setInquiryResponse] = useState('');
@@ -299,6 +299,21 @@ export default function SellerDashboard() {
                   </p>
                 </div>
               )}
+              
+              <div className="mt-4 flex gap-4">
+                <Link
+                  href="/account/seller/profile"
+                  className="px-4 py-2 bg-[#8d6748] text-white font-medium rounded-lg hover:bg-[#6b5235] transition-colors text-sm"
+                >
+                  ✏️ Edit Profile
+                </Link>
+                <button
+                  onClick={() => setActiveTab('profile')}
+                  className="px-4 py-2 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 transition-colors text-sm"
+                >
+                  👤 View Full Profile
+                </button>
+              </div>
             </div>
           </div>
 
@@ -344,6 +359,16 @@ export default function SellerDashboard() {
                 }`}
               >
                 📧 Inquiries ({inquiries.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('profile')}
+                className={`py-4 px-6 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'profile'
+                    ? 'border-[#8d6748] text-[#8d6748]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                👤 Business Profile
               </button>
             </nav>
           </div>
@@ -700,6 +725,65 @@ export default function SellerDashboard() {
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {activeTab === 'profile' && (
+              <div>
+                <div className="bg-[#f8f5f2] border border-gray-200 rounded-lg p-6 mb-6">
+                  <h2 className="text-xl font-semibold text-[#8d6748] mb-4">Business Profile</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-6">
+                    <div>
+                      <span className="font-medium text-[#4d5c3a]">Name:</span>
+                      <span className="ml-2 text-gray-700">
+                        {profile?.first_name || profile?.last_name 
+                          ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+                          : 'Not set'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-[#4d5c3a]">Email:</span>
+                      <span className="ml-2 text-gray-700">{user?.email || 'Not available'}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-[#4d5c3a]">Business Name:</span>
+                      <span className="ml-2 text-gray-700">{profile?.business_name || 'Not set'}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-[#4d5c3a]">Phone:</span>
+                      <span className="ml-2 text-gray-700">{profile?.contact_number || 'Not set'}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-[#4d5c3a]">Business Address:</span>
+                      <span className="ml-2 text-gray-700">{profile?.business_address || 'Not set'}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-[#4d5c3a]">Country:</span>
+                      <span className="ml-2 text-gray-700">{profile?.country || 'Not set'}</span>
+                    </div>
+                    <div className="md:col-span-2">
+                      <span className="font-medium text-[#4d5c3a]">Business Description:</span>
+                      <span className="ml-2 text-gray-700">{profile?.business_description || 'Not set'}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-4">
+                    <Link
+                      href="/account/seller/profile"
+                      className="px-6 py-3 bg-[#8d6748] text-white font-semibold rounded-lg hover:bg-[#6b5235] transition-colors"
+                    >
+                      ✏️ Edit Profile
+                    </Link>
+                  </div>
+                  
+                  {(!profile?.business_name || !profile?.business_address || !profile?.business_description) && (
+                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <p className="text-sm text-yellow-800">
+                        <strong>⚠️ Incomplete Profile:</strong> Please complete your seller profile to improve visibility to customers and enable all features.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
