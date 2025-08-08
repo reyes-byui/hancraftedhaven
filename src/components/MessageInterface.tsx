@@ -99,32 +99,44 @@ export default function MessageInterface({
           console.error('🔗 In your Supabase dashboard SQL Editor')
         }
         
+        // Set a temporary conversation ID to show the input area
+        setSelectedConversation('temp-conversation')
         return
       }
 
       console.log('✅ Initial conversation created:', conversationId)
       setSelectedConversation(conversationId)
-      // Don't call loadConversations here to avoid circular dependency
+      // Reload conversations to show the new one
+      setTimeout(() => loadConversations(), 500)
     } catch (error) {
       console.error('❌ Exception in createInitialConversation:', error)
+      // Still show input area even if conversation creation fails
+      setSelectedConversation('temp-conversation')
     }
-  }, [initialSellerId, userType, userId, initialProductId])
+  }, [initialSellerId, userType, userId, initialProductId, loadConversations])
 
   useEffect(() => {
     loadConversations()
   }, [userId, userType, loadConversations])
 
   useEffect(() => {
-    if (initialSellerId && !initialConversationId && conversations.length > 0) {
+    if (initialSellerId && !initialConversationId) {
+      // Immediately show interface for new conversations
+      setSelectedConversation('new-conversation')
       createInitialConversation()
     }
-  }, [initialSellerId, initialConversationId, conversations, createInitialConversation])
+  }, [initialSellerId, initialConversationId, createInitialConversation])
 
   // Load messages when conversation changes
   useEffect(() => {
-    if (selectedConversation) {
+    if (selectedConversation && 
+        selectedConversation !== 'new-conversation' && 
+        selectedConversation !== 'temp-conversation') {
       loadMessages(selectedConversation)
       markMessagesAsRead(selectedConversation, userId)
+    } else if (selectedConversation === 'new-conversation' || selectedConversation === 'temp-conversation') {
+      // Clear messages for new conversations
+      setMessages([])
     }
   }, [selectedConversation, userId])
 
@@ -135,7 +147,9 @@ export default function MessageInterface({
 
   // Real-time message subscriptions
   useEffect(() => {
-    if (!selectedConversation) return
+    if (!selectedConversation || 
+        selectedConversation === 'new-conversation' || 
+        selectedConversation === 'temp-conversation') return
 
     const channel = supabase
       .channel(`messages:${selectedConversation}`)
@@ -178,19 +192,46 @@ export default function MessageInterface({
   }
 
   const handleSendMessage = async () => {
-    if (!selectedConversation || !newMessage.trim()) return
+    if (!newMessage.trim()) return
 
     setSending(true)
     try {
       let attachmentUrl = null
       let attachmentType = null
+      let actualConversationId = selectedConversation
+
+      // If this is a new conversation, create it first
+      if (selectedConversation === 'new-conversation' || selectedConversation === 'temp-conversation') {
+        console.log('🔄 Creating conversation before sending message...')
+        const { data: conversationId, error } = await getOrCreateConversation(
+          userType === 'customer' ? userId : initialSellerId || '',
+          userType === 'seller' ? userId : initialSellerId || '',
+          initialProductId,
+          'Product Inquiry'
+        )
+
+        if (error) {
+          console.error('❌ Error creating conversation for message:', error)
+          alert('Failed to create conversation. Please try again.')
+          return
+        }
+
+        actualConversationId = conversationId
+        setSelectedConversation(conversationId)
+      }
+
+      // Ensure we have a valid conversation ID
+      if (!actualConversationId) {
+        alert('Please select a conversation first.')
+        return
+      }
 
       // Upload attachment if present
       if (attachmentFile) {
         const { data: url, error: uploadError } = await uploadMessageAttachment(
           attachmentFile,
           userId,
-          selectedConversation
+          actualConversationId
         )
         if (uploadError) {
           console.error('Error uploading attachment:', uploadError)
@@ -201,7 +242,7 @@ export default function MessageInterface({
       }
 
       const { error } = await sendMessage(
-        selectedConversation,
+        actualConversationId,
         userId,
         userType,
         newMessage,
@@ -211,6 +252,7 @@ export default function MessageInterface({
 
       if (error) {
         console.error('Error sending message:', error)
+        alert('Failed to send message. Please try again.')
         return
       }
 
@@ -219,8 +261,15 @@ export default function MessageInterface({
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
+      
+      // Reload messages and conversations
+      if (actualConversationId !== 'new-conversation' && actualConversationId !== 'temp-conversation') {
+        loadMessages(actualConversationId)
+        loadConversations()
+      }
     } catch (error) {
       console.error('Error:', error)
+      alert('Failed to send message. Please check your connection and try again.')
     } finally {
       setSending(false)
     }
@@ -321,17 +370,22 @@ export default function MessageInterface({
             <div className="p-4 border-b border-gray-200 bg-gray-50">
               <div className="flex justify-between items-center">
                 <h4 className="font-semibold text-gray-900">
-                  {conversations.find(c => c.id === selectedConversation)?.subject}
+                  {selectedConversation === 'new-conversation' || selectedConversation === 'temp-conversation'
+                    ? 'New Message'
+                    : conversations.find(c => c.id === selectedConversation)?.subject || 'Message'
+                  }
                 </h4>
-                <select
-                  value={conversations.find(c => c.id === selectedConversation)?.status || 'active'}
-                  onChange={(e) => updateConversationStatus(selectedConversation, e.target.value as 'active' | 'closed' | 'archived')}
-                  className="text-sm border border-gray-300 rounded px-2 py-1"
-                >
-                  <option value="active">Active</option>
-                  <option value="closed">Closed</option>
-                  <option value="archived">Archived</option>
-                </select>
+                {selectedConversation !== 'new-conversation' && selectedConversation !== 'temp-conversation' && (
+                  <select
+                    value={conversations.find(c => c.id === selectedConversation)?.status || 'active'}
+                    onChange={(e) => updateConversationStatus(selectedConversation, e.target.value as 'active' | 'closed' | 'archived')}
+                    className="text-sm border border-gray-300 rounded px-2 py-1"
+                  >
+                    <option value="active">Active</option>
+                    <option value="closed">Closed</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                )}
               </div>
             </div>
 

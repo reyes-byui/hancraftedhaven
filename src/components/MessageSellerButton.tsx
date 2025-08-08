@@ -33,16 +33,17 @@ export default function MessageSellerButton({
       const { data: { user: currentUser } } = await supabase.auth.getUser()
       
       if (!currentUser) {
-        // Redirect to login or show login modal
-        alert('Please log in to message the seller')
+        // Better user experience - redirect to login with return URL
+        alert('Please log in to message the seller. You will be redirected to the login page.')
+        window.location.href = `/login?returnTo=${encodeURIComponent(window.location.pathname)}`
         return
       }
 
       setUser(currentUser)
       setShowMessages(true)
     } catch (error) {
-      console.error('Error:', error)
-      alert('Failed to start conversation')
+      console.error('Error starting conversation:', error)
+      alert('Failed to start conversation. Please try again or contact support.')
     } finally {
       setLoading(false)
     }

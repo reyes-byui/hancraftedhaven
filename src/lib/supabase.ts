@@ -2827,13 +2827,10 @@ export async function getConversationMessages(
   limit: number = 50
 ): Promise<{ data: MessageWithSender[], error: string | null }> {
   try {
+    // First, get basic message data without foreign key joins
     const { data, error } = await supabase
       .from('messages')
-      .select(`
-        *,
-        customer_profiles!messages_sender_id_fkey (*),
-        seller_profiles!messages_sender_id_fkey (*)
-      `)
+      .select('*')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true })
       .limit(limit)
@@ -2842,18 +2839,61 @@ export async function getConversationMessages(
       throw error
     }
 
+    // If no messages, return empty array
+    if (!data || data.length === 0) {
+      return { data: [], error: null }
+    }
+
+    // Get unique sender IDs and their types
+    const customerIds = data
+      .filter(msg => msg.sender_type === 'customer')
+      .map(msg => msg.sender_id)
+      .filter((id, index, arr) => arr.indexOf(id) === index)
+
+    const sellerIds = data
+      .filter(msg => msg.sender_type === 'seller')
+      .map(msg => msg.sender_id)
+      .filter((id, index, arr) => arr.indexOf(id) === index)
+
+    // Fetch customer profiles
+    let customerProfiles: any[] = []
+    if (customerIds.length > 0) {
+      const { data: custData } = await supabase
+        .from('customer_profiles')
+        .select('*')
+        .in('id', customerIds)
+      customerProfiles = custData || []
+    }
+
+    // Fetch seller profiles
+    let sellerProfiles: any[] = []
+    if (sellerIds.length > 0) {
+      const { data: sellData } = await supabase
+        .from('seller_profiles')
+        .select('*')
+        .in('id', sellerIds)
+      sellerProfiles = sellData || []
+    }
+
     // Process data to include correct sender profile
-    const processedData = (data || []).map(msg => ({
-      ...msg,
-      sender_profile: msg.sender_type === 'customer' 
-        ? msg.customer_profiles 
-        : msg.seller_profiles,
-      customer_profiles: undefined,
-      seller_profiles: undefined
-    }))
+    const processedData = data.map(msg => {
+      let sender_profile = null
+      
+      if (msg.sender_type === 'customer') {
+        sender_profile = customerProfiles.find(p => p.id === msg.sender_id)
+      } else if (msg.sender_type === 'seller') {
+        sender_profile = sellerProfiles.find(p => p.id === msg.sender_id)
+      }
+
+      return {
+        ...msg,
+        sender_profile
+      }
+    })
 
     return { data: processedData, error: null }
   } catch (error: unknown) {
+    console.error('Error in getConversationMessages:', error)
     return { data: [], error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
