@@ -3411,3 +3411,189 @@ export async function getCustomerDeliveredOrders(customerId?: string): Promise<{
     return { data: null, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
+
+// Get marketplace statistics
+export async function getMarketplaceStats(): Promise<{ 
+  data: { 
+    activeArtisans: number; 
+    happyCustomers: number; 
+    productsSold: number 
+  } | null, 
+  error: string | null 
+}> {
+  try {
+    console.log('🔍 getMarketplaceStats: Starting function')
+    
+    // Get count of active sellers
+    const { count: sellersCount, error: sellersError } = await supabase
+      .from('seller_profiles')
+      .select('*', { count: 'exact', head: true })
+
+    console.log('🔍 getMarketplaceStats: Sellers query result:', { sellersCount, sellersError })
+
+    if (sellersError) {
+      console.error('Error fetching sellers count:', sellersError)
+    }
+
+    // Get count of all registered customers
+    const { count: customersCount, error: customersError } = await supabase
+      .from('customer_profiles')
+      .select('*', { count: 'exact', head: true })
+
+    console.log('🔍 getMarketplaceStats: Customers query result:', { customersCount, customersError })
+
+    if (customersError) {
+      console.error('Error fetching customers count:', customersError)
+    }
+
+    // Get total products sold from delivered order items
+    const { data: orderItemsData, error: orderItemsError } = await supabase
+      .from('order_items')
+      .select('quantity, orders!inner(*)')
+      .eq('orders.status', 'delivered')
+
+    console.log('🔍 getMarketplaceStats: Order items query result:', { 
+      orderItemsDataLength: orderItemsData?.length, 
+      orderItemsError,
+      orderItemsData: orderItemsData?.slice(0, 3) // Show first 3 items for debugging
+    })
+
+    if (orderItemsError) {
+      console.error('Error fetching order items count:', orderItemsError)
+    }
+
+    // Sum up the quantities from all delivered order items
+    const totalProductsSold = orderItemsData?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0
+
+    const result = {
+      activeArtisans: sellersCount || 0,
+      happyCustomers: customersCount || 0,
+      productsSold: totalProductsSold
+    }
+
+    console.log('🔍 getMarketplaceStats: Final result:', result)
+
+    return {
+      data: result,
+      error: null
+    }
+  } catch (error: unknown) {
+    console.error('Error in getMarketplaceStats:', error)
+    return { 
+      data: null, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    }
+  }
+}
+
+// Platform Review Interface
+export interface PlatformReview {
+  id: string
+  user_id: string
+  user_type: 'customer' | 'seller'
+  rating: number
+  review_text: string
+  reviewer_name: string
+  created_at: string
+}
+
+// Add platform review
+export async function addPlatformReview(
+  rating: number,
+  reviewText: string,
+  userType: 'customer' | 'seller'
+): Promise<{ data: PlatformReview | null, error: string | null }> {
+  try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      return { data: null, error: 'You must be logged in to submit a review' }
+    }
+
+    // Get user profile based on type
+    let reviewerName = 'Anonymous User'
+    if (userType === 'customer') {
+      const { data: profile } = await supabase
+        .from('customer_profiles')
+        .select('first_name, last_name')
+        .eq('user_id', user.id)
+        .single()
+      
+      if (profile) {
+        reviewerName = `${profile.first_name} ${profile.last_name}`
+      }
+    } else if (userType === 'seller') {
+      const { data: profile } = await supabase
+        .from('seller_profiles')
+        .select('first_name, last_name, business_name')
+        .eq('user_id', user.id)
+        .single()
+      
+      if (profile) {
+        reviewerName = profile.business_name || `${profile.first_name} ${profile.last_name}`
+      }
+    }
+
+    // Check if table exists, if not create it
+    const { data, error } = await supabase
+      .from('platform_reviews')
+      .insert({
+        user_id: user.id,
+        user_type: userType,
+        rating,
+        review_text: reviewText,
+        reviewer_name: reviewerName
+      })
+      .select()
+      .single()
+
+    if (error) {
+      // If table doesn't exist, provide helpful message
+      if (error.code === '42P01') {
+        return { 
+          data: null, 
+          error: 'Platform reviews table not set up yet. Please create the platform_reviews table in your database.' 
+        }
+      }
+      throw error
+    }
+
+    return { data, error: null }
+  } catch (error: unknown) {
+    return { 
+      data: null, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    }
+  }
+}
+
+// Get platform reviews
+export async function getPlatformReviews(limit: number = 10): Promise<{ 
+  data: PlatformReview[] | null, 
+  error: string | null 
+}> {
+  try {
+    const { data, error } = await supabase
+      .from('platform_reviews')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (error) {
+      if (error.code === '42P01') {
+        return { 
+          data: [], 
+          error: null // Return empty array if table doesn't exist yet
+        }
+      }
+      throw error
+    }
+
+    return { data: data || [], error: null }
+  } catch (error: unknown) {
+    return { 
+      data: null, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    }
+  }
+}

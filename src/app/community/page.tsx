@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Star, ChevronLeft, ChevronRight, Heart, MessageCircle, Shield, Award } from 'lucide-react'
-import { getRecentReviewsForCommunity, type ReviewForCommunity } from '@/lib/supabase'
+import { Star, ChevronLeft, ChevronRight, Heart, MessageCircle, Shield, Award, Send } from 'lucide-react'
+import { getRecentReviewsForCommunity, addPlatformReview, getPlatformReviews, getCurrentUser, type ReviewForCommunity, type PlatformReview } from '@/lib/supabase'
 import MainHeader from "../../components/MainHeader";
 import Footer from "../../components/Footer";
 import DatabaseSetupMessage from "../../components/DatabaseSetupMessage";
@@ -300,9 +300,196 @@ function CommunityStats({ reviewCount }: { reviewCount: number }) {
   )
 }
 
+// Platform Review Form Component
+function PlatformReviewForm({ onReviewSubmitted }: { onReviewSubmitted: () => void }) {
+  const [rating, setRating] = useState(0)
+  const [reviewText, setReviewText] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
+  const [userType, setUserType] = useState<'customer' | 'seller' | null>(null)
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { user } = await getCurrentUser()
+      if (user) {
+        setUser(user)
+        // Try to determine user type by checking which profile exists
+        // This is a simplified check - you might want to enhance this
+        setUserType('customer') // Default to customer, you can enhance this logic
+      }
+    }
+    checkUser()
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user || !userType || rating === 0 || !reviewText.trim()) return
+
+    setIsSubmitting(true)
+    try {
+      const { error } = await addPlatformReview(rating, reviewText.trim(), userType)
+      if (error) {
+        alert(error)
+      } else {
+        setRating(0)
+        setReviewText('')
+        onReviewSubmitted()
+        alert('Thank you for your review!')
+      }
+    } catch (err) {
+      alert('Failed to submit review. Please try again.')
+      console.error('Error submitting platform review:', err)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (!user) {
+    return (
+      <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-8 text-center">
+        <h3 className="text-2xl font-bold text-gray-900 mb-4">Share Your Experience</h3>
+        <p className="text-gray-600 mb-6">
+          Help us improve Handcrafted Haven by sharing your experience with our platform.
+        </p>
+        <div className="space-x-4">
+          <Link
+            href="/login/customer"
+            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors duration-200"
+          >
+            Login as Customer
+          </Link>
+          <Link
+            href="/login/seller"
+            className="inline-flex items-center px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors duration-200"
+          >
+            Login as Seller
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-8">
+      <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Review Handcrafted Haven</h3>
+      <form onSubmit={handleSubmit} className="max-w-2xl mx-auto">
+        {/* Rating Stars */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            How would you rate your overall experience with Handcrafted Haven?
+          </label>
+          <div className="flex items-center gap-2">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                type="button"
+                onClick={() => setRating(star)}
+                className="focus:outline-none focus:ring-2 focus:ring-purple-500 rounded"
+              >
+                <Star
+                  className={`w-8 h-8 transition-colors ${
+                    star <= rating
+                      ? 'fill-yellow-400 text-yellow-400'
+                      : 'fill-gray-200 text-gray-200 hover:fill-yellow-300 hover:text-yellow-300'
+                  }`}
+                />
+              </button>
+            ))}
+            <span className="ml-3 text-sm text-gray-600">
+              {rating === 0 ? 'Select a rating' : `${rating} star${rating !== 1 ? 's' : ''}`}
+            </span>
+          </div>
+        </div>
+
+        {/* Review Text */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Share your thoughts about the platform
+          </label>
+          <textarea
+            value={reviewText}
+            onChange={(e) => setReviewText(e.target.value)}
+            placeholder="What do you like about Handcrafted Haven? How has your experience been as a user of our platform?"
+            rows={4}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+            maxLength={500}
+          />
+          <div className="text-right text-sm text-gray-500 mt-1">
+            {reviewText.length}/500 characters
+          </div>
+        </div>
+
+        {/* Submit Button */}
+        <div className="text-center">
+          <button
+            type="submit"
+            disabled={isSubmitting || rating === 0 || !reviewText.trim()}
+            className="inline-flex items-center px-8 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
+          >
+            {isSubmitting ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                Submitting...
+              </>
+            ) : (
+              <>
+                <Send className="w-5 h-5 mr-2" />
+                Submit Review
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// Platform Reviews Display Component
+function PlatformReviewsDisplay({ reviews }: { reviews: PlatformReview[] }) {
+  if (reviews.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <MessageCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+        <p className="text-gray-500">No platform reviews yet. Be the first to share your experience!</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {reviews.map((review) => (
+        <div key={review.id} className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h4 className="font-semibold text-gray-900">{review.reviewer_name}</h4>
+              <span className={`text-xs px-2 py-1 rounded-full ${
+                review.user_type === 'seller' 
+                  ? 'bg-purple-100 text-purple-800' 
+                  : 'bg-blue-100 text-blue-800'
+              }`}>
+                {review.user_type === 'seller' ? 'Artisan' : 'Customer'}
+              </span>
+            </div>
+            <StarRating rating={review.rating} size="sm" />
+          </div>
+          <p className="text-gray-700 text-sm mb-3">{review.review_text}</p>
+          <div className="text-xs text-gray-500">
+            {new Date(review.created_at).toLocaleDateString('en-US', {
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric'
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // Main Community Page Component
 export default function CommunityPage() {
   const [reviews, setReviews] = useState<ReviewForCommunity[]>([])
+  const [platformReviews, setPlatformReviews] = useState<PlatformReview[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -310,8 +497,9 @@ export default function CommunityPage() {
     async function loadReviews() {
       try {
         setIsLoading(true)
+        
+        // Load product reviews
         const { data, error } = await getRecentReviewsForCommunity(50)
-
         if (error) {
           // If it's a function not found error, show a helpful message
           if (error.includes('function') || error.includes('does not exist')) {
@@ -320,8 +508,12 @@ export default function CommunityPage() {
           }
           throw new Error(error)
         }
-
         setReviews(data || [])
+
+        // Load platform reviews
+        const { data: platformData } = await getPlatformReviews(10)
+        setPlatformReviews(platformData || [])
+        
       } catch (err) {
         console.error('Error loading reviews:', err)
         if (err instanceof Error && err.message.includes('function')) {
@@ -336,6 +528,12 @@ export default function CommunityPage() {
 
     loadReviews()
   }, [])
+
+  const handlePlatformReviewSubmitted = async () => {
+    // Reload platform reviews after submission
+    const { data: platformData } = await getPlatformReviews(10)
+    setPlatformReviews(platformData || [])
+  }
 
   if (isLoading) {
     return (
@@ -406,6 +604,34 @@ export default function CommunityPage() {
             </div>
 
             <ReviewsCarousel reviews={reviews} />
+          </div>
+
+          {/* Platform Reviews Section */}
+          <div className="mb-16">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">Review Handcrafted Haven</h2>
+              <p className="text-gray-600 max-w-2xl mx-auto">
+                Share your experience with our platform and help us improve our service for all users.
+              </p>
+            </div>
+
+            {/* Platform Review Form */}
+            <div className="mb-12">
+              <PlatformReviewForm onReviewSubmitted={handlePlatformReviewSubmitted} />
+            </div>
+
+            {/* Platform Reviews Display */}
+            {platformReviews.length > 0 && (
+              <div>
+                <div className="text-center mb-8">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">What Our Community Says About Us</h3>
+                  <p className="text-gray-600">
+                    Honest feedback from our customers and artisans about their experience with Handcrafted Haven.
+                  </p>
+                </div>
+                <PlatformReviewsDisplay reviews={platformReviews} />
+              </div>
+            )}
           </div>
 
           {/* Community Features */}

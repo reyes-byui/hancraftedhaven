@@ -6,7 +6,7 @@ import Footer from "../components/Footer";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getTopSellers, getTopCrafts } from "@/lib/supabase";
+import { getTopSellers, getTopCrafts, getMarketplaceStats } from "@/lib/supabase";
 
 // Fallback data in case of no real data
 const defaultSellers = [
@@ -52,6 +52,11 @@ export default function Home() {
   const [topSellers, setTopSellers] = useState(defaultSellers);
   const [topCrafts, setTopCrafts] = useState(defaultCrafts);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    activeArtisans: 0,
+    happyCustomers: 0,
+    productsSold: 0
+  });
 
   useEffect(() => {
     loadTopData();
@@ -69,6 +74,12 @@ export default function Home() {
       const { data: craftsData, error: craftsError } = await getTopCrafts(5);
       if (!craftsError && craftsData && craftsData.length > 0) {
         setTopCrafts(craftsData);
+      }
+
+      // Load marketplace statistics
+      const { data: statsData, error: statsError } = await getMarketplaceStats();
+      if (!statsError && statsData) {
+        setStats(statsData);
       }
     } catch (error) {
       console.error('Error loading top data:', error);
@@ -398,15 +409,15 @@ export default function Home() {
             </div>
             <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
               <div className="flex flex-col items-center">
-                <div className="text-3xl font-bold mb-2">500+</div>
+                <div className="text-3xl font-bold mb-2">{stats.activeArtisans}+</div>
                 <div className="text-sm opacity-80">Active Artisans</div>
               </div>
               <div className="flex flex-col items-center">
-                <div className="text-3xl font-bold mb-2">10K+</div>
+                <div className="text-3xl font-bold mb-2">{stats.happyCustomers}+</div>
                 <div className="text-sm opacity-80">Happy Customers</div>
               </div>
               <div className="flex flex-col items-center">
-                <div className="text-3xl font-bold mb-2">50K+</div>
+                <div className="text-3xl font-bold mb-2">{stats.productsSold}+</div>
                 <div className="text-sm opacity-80">Products Sold</div>
               </div>
             </div>
