@@ -66,10 +66,10 @@ export default function MainHeader() {
       <div className="hidden md:block px-4 sm:px-8 py-4 sm:py-6">
         {/* Top Row: Logo, Title, and User Info */}
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-4">
+          <Link href="/" className="flex items-center gap-4 hover:opacity-80 transition-opacity">
             <Image src="/logo.png" alt="Handcrafted Haven Logo" width={64} height={64} className="sm:w-20 sm:h-20" />
             <span className="text-2xl sm:text-3xl font-serif font-bold text-[#8d6748]">Handcrafted Haven</span>
-          </div>
+          </Link>
           
           <div className="flex items-center">
             {loading ? (
@@ -140,12 +140,16 @@ export default function MainHeader() {
       <div className="md:hidden flex flex-col px-4 sm:px-8 py-4 sm:py-6 gap-4">
         {/* Logo - Mobile: Top Center */}
         <div className="flex justify-center">
-          <Image src="/logo.png" alt="Handcrafted Haven Logo" width={64} height={64} className="sm:w-24 sm:h-24" />
+          <Link href="/" className="hover:opacity-80 transition-opacity">
+            <Image src="/logo.png" alt="Handcrafted Haven Logo" width={64} height={64} className="sm:w-24 sm:h-24" />
+          </Link>
         </div>
 
         {/* Title - Mobile: Center */}
         <div className="flex justify-center">
-          <span className="text-xl sm:text-3xl font-serif font-bold text-[#8d6748]">Handcrafted Haven</span>
+          <Link href="/" className="hover:opacity-80 transition-opacity">
+            <span className="text-xl sm:text-3xl font-serif font-bold text-[#8d6748]">Handcrafted Haven</span>
+          </Link>
         </div>
 
         {/* Mobile: User Info and Hamburger */}
