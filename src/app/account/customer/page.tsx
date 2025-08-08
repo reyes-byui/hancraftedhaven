@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { getCurrentUserWithProfile } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
@@ -55,31 +56,58 @@ export default function CustomerDashboard() {
           
           {/* Profile Information Display */}
           <div className="bg-[#f8f5f2] border border-gray-200 rounded-lg p-6 mb-8">
-            <h2 className="text-xl font-semibold text-[#8d6748] mb-4">Your Profile Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="font-medium text-[#4d5c3a]">Name:</span>
-                <span className="ml-2 text-gray-700">
-                  {profile?.first_name || profile?.last_name 
-                    ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
-                    : 'Not set'}
-                </span>
+            <div className="flex items-start gap-6 mb-4">
+              {/* Profile Image */}
+              <div className="flex-shrink-0">
+                <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+                  {profile?.photo_url ? (
+                    <Image 
+                      src={profile.photo_url} 
+                      alt="Profile" 
+                      width={96} 
+                      height={96} 
+                      className="w-full h-full object-cover" 
+                    />
+                  ) : (
+                    <div className="text-gray-400 text-center">
+                      <svg className="w-8 h-8 mx-auto mb-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-xs">No Photo</span>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div>
-                <span className="font-medium text-[#4d5c3a]">Email:</span>
-                <span className="ml-2 text-gray-700">{user?.email || 'Not available'}</span>
-              </div>
-              <div>
-                <span className="font-medium text-[#4d5c3a]">Address:</span>
-                <span className="ml-2 text-gray-700">{profile?.address || 'Not set'}</span>
-              </div>
-              <div>
-                <span className="font-medium text-[#4d5c3a]">Phone:</span>
-                <span className="ml-2 text-gray-700">{profile?.contact_number || 'Not set'}</span>
-              </div>
-              <div>
-                <span className="font-medium text-[#4d5c3a]">Country:</span>
-                <span className="ml-2 text-gray-700">{profile?.country || 'Not set'}</span>
+              
+              {/* Profile Info */}
+              <div className="flex-grow">
+                <h2 className="text-xl font-semibold text-[#8d6748] mb-4">Your Profile Information</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-[#4d5c3a]">Name:</span>
+                    <span className="ml-2 text-gray-700">
+                      {profile?.first_name || profile?.last_name 
+                        ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+                        : 'Not set'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-[#4d5c3a]">Email:</span>
+                    <span className="ml-2 text-gray-700">{user?.email || 'Not available'}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-[#4d5c3a]">Address:</span>
+                    <span className="ml-2 text-gray-700">{profile?.address || 'Not set'}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-[#4d5c3a]">Phone:</span>
+                    <span className="ml-2 text-gray-700">{profile?.contact_number || 'Not set'}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-[#4d5c3a]">Country:</span>
+                    <span className="ml-2 text-gray-700">{profile?.country || 'Not set'}</span>
+                  </div>
+                </div>
               </div>
             </div>
             {(!profile?.address || !profile?.first_name) && (
@@ -123,9 +151,9 @@ export default function CustomerDashboard() {
             </Link>
 
             {/* Profile Settings */}
-            <Link href="/account/customer/profile" className="bg-[#f8f5f2] hover:bg-[#f0ede8] p-6 rounded-lg transition-colors border">
-              <h3 className="text-xl font-semibold text-[#8d6748] mb-2">Profile Settings</h3>
-              <p className="text-[#4d5c3a]">Update your personal information and shipping address.</p>
+            <Link href="/settings" className="bg-[#f8f5f2] hover:bg-[#f0ede8] p-6 rounded-lg transition-colors border">
+              <h3 className="text-xl font-semibold text-[#8d6748] mb-2">Account Settings</h3>
+              <p className="text-[#4d5c3a]">Update your personal information, photo, and account settings.</p>
             </Link>
 
             {/* Support */}

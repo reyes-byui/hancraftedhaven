@@ -276,7 +276,7 @@ export default function AccountSettings() {
             {/* Profile Tab */}
             {activeTab === 'profile' && (
               <form onSubmit={handleProfileUpdate} className="space-y-6">
-                <h2 className="text-2xl font-serif text-[#8d6748] font-bold mb-6">Profile Information</h2>
+                <h2 className="text-2xl font-serif text-[#8d6748] font-bold mb-6">Profile Information & Photo</h2>
                 
                 {/* Profile Photo */}
                 <div className="flex flex-col items-center gap-4 mb-6">

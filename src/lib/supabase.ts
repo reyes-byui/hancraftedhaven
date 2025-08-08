@@ -925,44 +925,25 @@ export async function getCurrentUserWithProfile() {
       let profile = null
       let profileError = null
 
-      // First try the unified profile table
-      try {
+      // Get profile from appropriate table based on user type
+      if (userType === 'customer') {
         const { data, error } = await supabase
-          .from('profile')
+          .from('customer_profiles')
           .select('*')
           .eq('id', user.id)
           .maybeSingle()
         
-        if (data) {
-          profile = data
-        } else if (!error) {
-          // Profile table exists but no profile found, try old tables
-          throw new Error('No profile in unified table')
-        } else {
-          throw error
-        }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (_unifiedError) {
-        // Fall back to separate tables
-        if (userType === 'seller') {
-          const { data, error } = await supabase
-            .from('seller_profiles')
-            .select('*')
-            .eq('id', user.id)
-            .maybeSingle()
-          
-          profile = data
-          profileError = error
-        } else if (userType === 'customer') {
-          const { data, error } = await supabase
-            .from('customer_profiles')
-            .select('*')
-            .eq('id', user.id)
-            .maybeSingle()
-          
-          profile = data
-          profileError = error
-        }
+        profile = data
+        profileError = error
+      } else if (userType === 'seller') {
+        const { data, error } = await supabase
+          .from('seller_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle()
+        
+        profile = data
+        profileError = error
       }
       
       if (profileError) {
@@ -2420,40 +2401,21 @@ export async function updateCustomerProfile(profileData: {
       return { error: 'Not authenticated' }
     }
 
-    // Try unified profile table first
-    try {
-      const { error } = await supabase
-        .from('profile')
-        .upsert({
-          id: user.id,
-          role: 'customer', // Ensure role is set for new profiles
-          ...profileData,
-          updated_at: new Date().toISOString()
-        })
+    // Update customer_profiles table directly (no fallback to non-existent profile table)
+    const { error } = await supabase
+      .from('customer_profiles')
+      .upsert({
+        id: user.id,
+        email: user.email || '', // Ensure email is provided for upsert
+        ...profileData,
+        updated_at: new Date().toISOString()
+      })
 
-      if (!error) {
-        return { error: null }
-      }
-      
-      // If unified table fails, fall back to customer_profiles
-      throw error
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (_unifiedError) {
-      // Fall back to customer_profiles table
-      const { error } = await supabase
-        .from('customer_profiles')
-        .upsert({
-          id: user.id,
-          ...profileData,
-          updated_at: new Date().toISOString()
-        })
-
-      if (error) {
-        return { error: error.message }
-      }
-
-      return { error: null }
+    if (error) {
+      return { error: error.message }
     }
+
+    return { error: null }
   } catch (error: unknown) {
     return { error: error instanceof Error ? error.message : 'Unknown error' }
   }
@@ -2475,40 +2437,20 @@ export async function updateSellerProfile(profileData: {
       return { error: 'Not authenticated' }
     }
 
-    // Try unified profile table first
-    try {
-      const { error } = await supabase
-        .from('profile')
-        .upsert({
-          id: user.id,
-          role: 'seller', // Ensure role is set for new profiles
-          ...profileData,
-          updated_at: new Date().toISOString()
-        })
+    // Update seller_profiles table directly (no fallback to non-existent profile table)
+    const { error } = await supabase
+      .from('seller_profiles')
+      .upsert({
+        id: user.id,
+        ...profileData,
+        updated_at: new Date().toISOString()
+      })
 
-      if (!error) {
-        return { error: null }
-      }
-      
-      // If unified table fails, fall back to seller_profiles
-      throw error
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (_unifiedError) {
-      // Fall back to seller_profiles table
-      const { error } = await supabase
-        .from('seller_profiles')
-        .upsert({
-          id: user.id,
-          ...profileData,
-          updated_at: new Date().toISOString()
-        })
-
-      if (error) {
-        return { error: error.message }
-      }
-
-      return { error: null }
+    if (error) {
+      return { error: error.message }
     }
+
+    return { error: null }
   } catch (error: unknown) {
     return { error: error instanceof Error ? error.message : 'Unknown error' }
   }

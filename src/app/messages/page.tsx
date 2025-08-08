@@ -137,20 +137,6 @@ export default function MessagesPage() {
                 userType={userType}
               />
             </div>
-
-            {/* Instructions */}
-            <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-blue-900 mb-2">How messaging works:</h3>
-              <ul className="text-sm text-blue-800 space-y-1">
-                <li>• Start conversations by clicking &ldquo;Message Seller&rdquo; on product pages</li>
-                <li>• Send text messages and attach images or documents (max 5MB)</li>
-                <li>• Receive real-time notifications for new messages</li>
-                <li>• Mark conversations as closed or archived when done</li>
-                {userType === 'seller' && (
-                  <li>• Respond quickly to maintain good customer relationships</li>
-                )}
-              </ul>
-            </div>
           </div>
         </div>
       </div>
