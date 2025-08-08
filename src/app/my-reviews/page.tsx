@@ -5,22 +5,27 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { getCustomerDeliveredOrders } from '@/lib/supabase'
 import DatabaseSetupMessage from '../../components/DatabaseSetupMessage'
+import MainHeader from '../../components/MainHeader'
+import Footer from '../../components/Footer'
 
-// Simple Star Rating Display
-function StarRating({ rating }: { rating: number }) {
-  return (
-    <div className="flex items-center gap-1">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <span key={star} className="text-lg">
-          {star <= rating ? '⭐' : '☆'}
-        </span>
-      ))}
-    </div>
-  )
+// Types
+interface Product {
+  id: string;
+  name: string;
+  image_url?: string;
+}
+
+interface OrderItem {
+  id: string;
+  product_id: string;
+  created_at: string;
+  product: Product;
+  existing_review?: { id: string };
+  has_reviewed?: boolean;
 }
 
 // Order Item Card for Review
-function OrderItemCard({ orderItem }: { orderItem: any }) {
+function OrderItemCard({ orderItem }: { orderItem: OrderItem }) {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'long',
@@ -86,7 +91,7 @@ function OrderItemCard({ orderItem }: { orderItem: any }) {
 }
 
 export default function CustomerReviewDashboard() {
-  const [deliveredOrders, setDeliveredOrders] = useState<any[]>([])
+  const [deliveredOrders, setDeliveredOrders] = useState<OrderItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'reviewed' | 'pending'>('all')
@@ -109,7 +114,7 @@ export default function CustomerReviewDashboard() {
         setDeliveredOrders(data || [])
       } catch (err) {
         console.error('Error loading orders:', err)
-        if (err instanceof Error && err.message.includes('function')) {
+        if (err instanceof Error && (err.message.includes('function') || err.message.includes('does not exist'))) {
           setError('Database functions not set up yet. Please run the PRODUCT_REVIEW_SYSTEM_SETUP.sql file in your Supabase dashboard.')
         } else {
           setError(err instanceof Error ? err.message : 'Failed to load orders. Please ensure the database is properly set up.')
@@ -134,54 +139,64 @@ export default function CustomerReviewDashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-12">
-        <div className="container mx-auto px-4">
-          <div className="text-center">
-            <div className="animate-pulse">
-              <div className="h-8 bg-gray-200 rounded w-64 mx-auto mb-4"></div>
-              <div className="h-4 bg-gray-200 rounded w-48 mx-auto mb-8"></div>
-              <div className="grid gap-4 max-w-4xl mx-auto">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
-                ))}
+      <div className="min-h-screen bg-[#f8f5f2] flex flex-col">
+        <MainHeader />
+        <div className="flex-1 py-12">
+          <div className="container mx-auto px-4">
+            <div className="text-center">
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-64 mx-auto mb-4"></div>
+                <div className="h-4 bg-gray-200 rounded w-48 mx-auto mb-8"></div>
+                <div className="grid gap-4 max-w-4xl mx-auto">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         </div>
+        <Footer />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 py-12">
-        <div className="container mx-auto px-4">
-          {error.includes('Database functions not set up') || error.includes('Product review system not yet set up') ? (
-            <DatabaseSetupMessage message={error} />
-          ) : (
-            <div className="text-center">
-              <div className="text-red-600 text-6xl mb-4">❌</div>
-              <h2 className="text-2xl font-bold text-red-600 mb-2">Error Loading Orders</h2>
-              <p className="text-gray-600">{error}</p>
-            </div>
-          )}
+      <div className="min-h-screen bg-[#f8f5f2] flex flex-col">
+        <MainHeader />
+        <div className="flex-1 py-12">
+          <div className="container mx-auto px-4">
+            {error.includes('Database functions not set up') || error.includes('Product review system not yet set up') ? (
+              <DatabaseSetupMessage message={error} />
+            ) : (
+              <div className="text-center">
+                <div className="text-red-600 text-6xl mb-4">❌</div>
+                <h2 className="text-2xl font-bold text-red-600 mb-2">Error Loading Orders</h2>
+                <p className="text-gray-600">{error}</p>
+              </div>
+            )}
+          </div>
         </div>
+        <Footer />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="container mx-auto px-4">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Review Your Products
-          </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Share your experience with products you've purchased. Your reviews help other customers and support our artisan community.
-          </p>
-        </div>
+    <div className="min-h-screen bg-[#f8f5f2] flex flex-col">
+      <MainHeader />
+      <div className="flex-1 py-12">
+        <div className="container mx-auto px-4">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-bold text-[#8d6748] mb-4">
+              Review Your Products
+            </h1>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Share your experience with products you&apos;ve purchased. Your reviews help other customers and support our artisan community.
+            </p>
+          </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 max-w-4xl mx-auto">
@@ -288,7 +303,9 @@ export default function CustomerReviewDashboard() {
             </div>
           </div>
         )}
+        </div>
       </div>
+      <Footer />
     </div>
   )
 }

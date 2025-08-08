@@ -7,7 +7,7 @@
 "use client";
 
 import { useEffect } from 'react';
-import { handleAuthError, clearAuthState, recoverFromAuthError } from '@/lib/supabase';
+import { clearAuthState, recoverFromAuthError } from '@/lib/supabase';
 
 interface AuthErrorRecoveryProps {
   children: React.ReactNode;

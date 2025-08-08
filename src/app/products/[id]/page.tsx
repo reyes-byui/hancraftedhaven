@@ -10,7 +10,7 @@ import ProductImageGallery from '@/components/ProductImageGallery';
 import ProductInquiryModal from '@/components/ProductInquiryModal';
 import MessageSellerButton from '@/components/MessageSellerButton';
 import ProductReviews from '@/components/ProductReviews';
-import { getCurrentUserWithProfile, getProductById, getSellerProfile, addToCart, getProductWithImages, type Product, type SellerProfile, type ProductWithImages } from '@/lib/supabase';
+import { getCurrentUserWithProfile, getSellerProfile, addToCart, getProductWithImages, type SellerProfile, type ProductWithImages } from '@/lib/supabase';
 
 export default function ProductDetailPage() {
   const params = useParams();

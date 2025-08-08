@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { getOrCreateConversation } from '@/lib/supabase'
 import MessageInterface from './MessageInterface'
 
 interface MessageSellerButtonProps {
@@ -12,6 +11,11 @@ interface MessageSellerButtonProps {
   className?: string
 }
 
+interface User {
+  id: string;
+  email?: string;
+}
+
 export default function MessageSellerButton({
   sellerId,
   productId,
@@ -19,7 +23,7 @@ export default function MessageSellerButton({
   className = ''
 }: MessageSellerButtonProps) {
   const [showMessages, setShowMessages] = useState(false)
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(false)
 
   const handleMessageSeller = async () => {

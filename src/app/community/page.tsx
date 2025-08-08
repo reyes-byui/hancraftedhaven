@@ -79,7 +79,7 @@ function ReviewCard({ review }: { review: ReviewForCommunity }) {
       {/* Review Comment */}
       <div className="mb-4">
         <p className="text-gray-700 text-sm leading-relaxed line-clamp-4">
-          "{review.comment}"
+          &ldquo;{review.comment}&rdquo;
         </p>
       </div>
 

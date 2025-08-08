@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { clearAuthState, recoverFromAuthError } from '@/lib/supabase'
+import { recoverFromAuthError } from '@/lib/supabase'
 
 export default function AuthErrorHandler() {
   useEffect(() => {

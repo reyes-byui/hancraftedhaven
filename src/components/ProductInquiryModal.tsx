@@ -49,7 +49,7 @@ export default function ProductInquiryModal({
         customer_name: customerName
       };
 
-      const { data, error: createError } = await createProductInquiry(inquiryData);
+      const { error: createError } = await createProductInquiry(inquiryData);
       
       if (createError) {
         throw new Error(createError);
@@ -91,7 +91,7 @@ export default function ProductInquiryModal({
               Inquiry Sent Successfully!
             </h2>
             <p className="text-[#4d5c3a] mb-4">
-              Your inquiry about "{productName}" has been sent to the seller. They will respond via email.
+              Your inquiry about &ldquo;{productName}&rdquo; has been sent to the seller. They will respond via email.
             </p>
           </div>
         </div>

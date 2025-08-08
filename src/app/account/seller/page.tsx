@@ -585,7 +585,7 @@ export default function SellerDashboard() {
                       <p className="text-blue-800 text-sm">
                         <strong>How it works:</strong>
                         <br />• Customers can send inquiries from product detail pages
-                        <br />• You'll receive notifications via email
+                        <br />• You&apos;ll receive notifications via email
                         <br />• Respond to inquiries here or via email
                         <br />• Track inquiry status and history
                       </p>

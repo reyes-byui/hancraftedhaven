@@ -12,7 +12,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 })
 
 // Auto-handle auth errors globally
-supabase.auth.onAuthStateChange(async (event, session) => {
+supabase.auth.onAuthStateChange(async (event) => {
   if (event === 'TOKEN_REFRESHED') {
     console.log('🔄 Token refreshed successfully')
   } else if (event === 'SIGNED_OUT') {
@@ -2737,7 +2737,7 @@ export async function getUserConversations(
     // Process the data to include unread count and last message
     const processedData = (data || []).map(conv => {
       const messages = conv.messages || []
-      const unreadMessages = messages.filter((msg: any) => !msg.is_read && msg.sender_type !== userType)
+      const unreadMessages = messages.filter((msg: { is_read: boolean; sender_type: string }) => !msg.is_read && msg.sender_type !== userType)
       const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null
 
       return {
@@ -3207,22 +3207,29 @@ export async function getRecentReviewsForCommunity(limit: number = 20): Promise<
         }
 
         // Transform the data to match expected format
-        const transformedData = (directData || []).map(review => ({
-          id: review.id,
-          product_id: review.product_id,
-          product_name: review.product?.name || 'Unknown Product',
-          product_image_url: review.product?.image_url || '',
-          rating: review.rating,
-          comment: review.comment,
-          is_anonymous: review.is_anonymous,
-          display_name: review.display_name,
-          helpful_count: review.helpful_count,
-          created_at: review.created_at,
-          seller_name: review.product?.seller ? 
-            `${review.product.seller.first_name || ''} ${review.product.seller.last_name || ''}`.trim() || 'Unknown Seller' : 
-            'Unknown Seller',
-          seller_business_name: review.product?.seller?.business_name || null
-        }))
+        const transformedData = (directData || []).map((review: Record<string, unknown>) => {
+          const product = Array.isArray(review.product) ? review.product[0] : review.product as Record<string, unknown> | undefined
+          const productRecord = product as Record<string, unknown> | undefined
+          const sellerArray = productRecord && Array.isArray(productRecord.seller) ? productRecord.seller as Record<string, unknown>[] : null
+          const seller = sellerArray ? sellerArray[0] : (productRecord ? productRecord.seller as Record<string, unknown> | undefined : null)
+          
+          return {
+            id: review.id as string,
+            product_id: review.product_id as string,
+            product_name: productRecord?.name as string || 'Unknown Product',
+            product_image_url: productRecord?.image_url as string || '',
+            rating: review.rating as number,
+            comment: review.comment as string,
+            is_anonymous: review.is_anonymous as boolean,
+            display_name: review.display_name as string,
+            helpful_count: review.helpful_count as number,
+            created_at: review.created_at as string,
+            seller_name: seller ? 
+              `${(seller as Record<string, unknown>).first_name || ''} ${(seller as Record<string, unknown>).last_name || ''}`.trim() || 'Unknown Seller' : 
+              'Unknown Seller',
+            seller_business_name: seller ? (seller as Record<string, unknown>).business_name as string || undefined : undefined
+          }
+        })
 
         return { data: transformedData, error: null }
       }
@@ -3320,7 +3327,7 @@ export async function getCustomerDeliveredOrders(customerId?: string): Promise<{
     // Check which products have been reviewed
     const productIds = orderItems.map(item => item.product_id)
     
-    let existingReviews: any[] = []
+    let existingReviews: { product_id: string; order_item_id: string }[] = []
     if (productIds.length > 0) {
       const { data: reviews, error: reviewError } = await supabase
         .from('product_reviews')

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import {
   getUserConversations,
@@ -43,9 +44,81 @@ export default function MessageInterface({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Load conversations
+  const loadConversations = useCallback(async () => {
+    try {
+      setLoading(true)
+      console.log('🔄 Loading conversations for:', { userId, userType })
+      
+      const { data, error } = await getUserConversations(userId, userType)
+      
+      if (error) {
+        console.error('💥 Error loading conversations:', error)
+        // Check if it's a table not found error
+        if (error.includes('does not exist') || error.includes('relation') || error.includes('conversations')) {
+          console.error('🚨 Messaging tables not set up. Please run the database setup SQL.')
+          console.error('📁 Check: docs/MESSAGING_SYSTEM_SETUP.sql')
+          console.error('📖 Guide: docs/COMPLETE_MESSAGING_SYSTEM_GUIDE.md')
+        }
+        return
+      }
+      setConversations(data)
+      
+    } catch (error) {
+      console.error('Error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [userType, userId])
+
+  const createInitialConversation = useCallback(async () => {
+    if (!initialSellerId) return
+
+    try {
+      console.log('🔄 Creating initial conversation...', {
+        customerId: userType === 'customer' ? userId : initialSellerId,
+        sellerId: userType === 'seller' ? userId : initialSellerId,
+        productId: initialProductId
+      })
+      
+      const { data: conversationId, error } = await getOrCreateConversation(
+        userType === 'customer' ? userId : initialSellerId,
+        userType === 'seller' ? userId : initialSellerId,
+        initialProductId,
+        'Product Inquiry'
+      )
+
+      if (error) {
+        console.error('❌ Error creating conversation:', error)
+        
+        // Check for specific error types and show user-friendly messages
+        if (error.includes('database functions not set up') || 
+            error.includes('does not exist') ||
+            error.includes('function get_or_create_conversation')) {
+          console.error('🚨 Database setup required!')
+          console.error('📁 Please run: docs/SAFE_MESSAGING_SETUP.sql')
+          console.error('🔗 In your Supabase dashboard SQL Editor')
+        }
+        
+        return
+      }
+
+      console.log('✅ Initial conversation created:', conversationId)
+      setSelectedConversation(conversationId)
+      // Don't call loadConversations here to avoid circular dependency
+    } catch (error) {
+      console.error('❌ Exception in createInitialConversation:', error)
+    }
+  }, [initialSellerId, userType, userId, initialProductId])
+
   useEffect(() => {
     loadConversations()
-  }, [userId, userType])
+  }, [userId, userType, loadConversations])
+
+  useEffect(() => {
+    if (initialSellerId && !initialConversationId && conversations.length > 0) {
+      createInitialConversation()
+    }
+  }, [initialSellerId, initialConversationId, conversations, createInitialConversation])
 
   // Load messages when conversation changes
   useEffect(() => {
@@ -53,7 +126,7 @@ export default function MessageInterface({
       loadMessages(selectedConversation)
       markMessagesAsRead(selectedConversation, userId)
     }
-  }, [selectedConversation])
+  }, [selectedConversation, userId])
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -89,74 +162,7 @@ export default function MessageInterface({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [selectedConversation, userId, supabase])
-
-  const loadConversations = async () => {
-    try {
-      const { data, error } = await getUserConversations(userId, userType)
-      if (error) {
-        console.error('Error loading conversations:', error)
-        
-        // Check if it's a table not found error
-        if (error.includes('does not exist') || error.includes('relation') || error.includes('conversations')) {
-          console.error('🚨 Messaging tables not set up. Please run the database setup SQL.')
-          console.error('📁 Check: docs/MESSAGING_SYSTEM_SETUP.sql')
-          console.error('📖 Guide: docs/COMPLETE_MESSAGING_SYSTEM_GUIDE.md')
-        }
-        return
-      }
-      setConversations(data)
-      
-      // If we have an initial seller/product, create conversation
-      if (initialSellerId && !initialConversationId) {
-        await createInitialConversation()
-      }
-    } catch (error) {
-      console.error('Error:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const createInitialConversation = async () => {
-    if (!initialSellerId) return
-
-    try {
-      console.log('🔄 Creating initial conversation...', {
-        customerId: userType === 'customer' ? userId : initialSellerId,
-        sellerId: userType === 'seller' ? userId : initialSellerId,
-        productId: initialProductId
-      })
-      
-      const { data: conversationId, error } = await getOrCreateConversation(
-        userType === 'customer' ? userId : initialSellerId,
-        userType === 'seller' ? userId : initialSellerId,
-        initialProductId,
-        'Product Inquiry'
-      )
-
-      if (error) {
-        console.error('❌ Error creating conversation:', error)
-        
-        // Check for specific error types and show user-friendly messages
-        if (error.includes('database functions not set up') || 
-            error.includes('does not exist') ||
-            error.includes('function get_or_create_conversation')) {
-          console.error('🚨 Database setup required!')
-          console.error('📁 Please run: docs/SAFE_MESSAGING_SETUP.sql')
-          console.error('🔗 In your Supabase dashboard SQL Editor')
-        }
-        
-        return
-      }
-
-      console.log('✅ Initial conversation created:', conversationId)
-      setSelectedConversation(conversationId)
-      await loadConversations()
-    } catch (error) {
-      console.error('❌ Exception in createInitialConversation:', error)
-    }
-  }
+  }, [selectedConversation, userId])
 
   const loadMessages = async (conversationId: string) => {
     try {
@@ -194,7 +200,7 @@ export default function MessageInterface({
         }
       }
 
-      const { data: message, error } = await sendMessage(
+      const { error } = await sendMessage(
         selectedConversation,
         userId,
         userType,
@@ -319,7 +325,7 @@ export default function MessageInterface({
                 </h4>
                 <select
                   value={conversations.find(c => c.id === selectedConversation)?.status || 'active'}
-                  onChange={(e) => updateConversationStatus(selectedConversation, e.target.value as any)}
+                  onChange={(e) => updateConversationStatus(selectedConversation, e.target.value as 'active' | 'closed' | 'archived')}
                   className="text-sm border border-gray-300 rounded px-2 py-1"
                 >
                   <option value="active">Active</option>
@@ -347,9 +353,11 @@ export default function MessageInterface({
                     {message.attachment_url && (
                       <div className="mt-2">
                         {message.attachment_type?.startsWith('image/') ? (
-                          <img
+                          <Image
                             src={message.attachment_url}
                             alt="Attachment"
+                            width={200}
+                            height={150}
                             className="max-w-full h-auto rounded"
                           />
                         ) : (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { submitProductReview, type ReviewFormData } from '@/lib/supabase'
@@ -28,7 +28,7 @@ function StarRating({ rating, onRate, editable = false }: {
   )
 }
 
-export default function ReviewProductPage() {
+function ReviewProductContent() {
   const searchParams = useSearchParams()
   const productId = searchParams.get('productId')
   const orderItemId = searchParams.get('orderItemId')
@@ -262,5 +262,13 @@ export default function ReviewProductPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ReviewProductPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-gray-500">Loading...</div></div>}>
+      <ReviewProductContent />
+    </Suspense>
   )
 }

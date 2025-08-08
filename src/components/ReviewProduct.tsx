@@ -1,17 +1,30 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import Image from 'next/image'
-import { Star, CheckCircle, AlertCircle, Loader2, ShoppingBag, User, UserX } from 'lucide-react'
+import { Star, CheckCircle, AlertCircle, Loader2, ShoppingBag, User } from 'lucide-react'
 import { 
   submitProductReview, 
-  canCustomerReviewProduct, 
   getCustomerDeliveredOrders,
-  type ReviewFormData,
-  type CanReviewResponse 
+  type ReviewFormData
 } from '@/lib/supabase'
-import { useAuth } from '@/lib/auth-context'
+import { supabase } from '@/lib/supabase'
+
+interface Product {
+  id: string;
+  name: string;
+  image_url?: string;
+}
+
+interface OrderItem {
+  id: string;
+  product_id: string;
+  created_at: string;
+  product: Product;
+  has_reviewed?: boolean;
+  can_review?: boolean;
+}
 
 // Star Rating Input Component
 function StarRatingInput({ 
@@ -77,7 +90,7 @@ function ReviewForm({
   product: {
     id: string
     name: string
-    image_url: string
+    image_url?: string
   }
   orderItemId: string
   onSubmitSuccess: () => void
@@ -238,15 +251,23 @@ function ReviewForm({
 
 // Reviewable Products List Component
 function ReviewableProductsList() {
-  const { user } = useAuth()
-  const [deliveredOrders, setDeliveredOrders] = useState<any[]>([])
+  const [user, setUser] = useState<{ id: string } | null>(null)
+  const [deliveredOrders, setDeliveredOrders] = useState<OrderItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<{
-    product: any
+    product: Product
     orderItemId: string
   } | null>(null)
   const [reviewSuccess, setReviewSuccess] = useState(false)
+
+  useEffect(() => {
+    async function loadUser() {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+    }
+    loadUser()
+  }, [])
 
   useEffect(() => {
     async function loadDeliveredOrders() {
@@ -351,14 +372,14 @@ function ReviewableProductsList() {
         <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
         <h3 className="text-xl font-semibold text-gray-600 mb-2">No products to review</h3>
         <p className="text-gray-500 mb-4">
-          You can review products after they have been delivered and you haven't reviewed them yet.
+          You can review products after they have been delivered and you haven&apos;t reviewed them yet.
         </p>
-        <a
+        <Link
           href="/products"
           className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200"
         >
           Browse Products
-        </a>
+        </Link>
       </div>
     )
   }
@@ -423,7 +444,7 @@ export default function ReviewProductPage() {
             Review Your Products
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Share your experience with handcrafted products you've purchased. 
+            Share your experience with handcrafted products you&apos;ve purchased. 
             Your honest reviews help other customers and support our artisan community.
           </p>
         </div>

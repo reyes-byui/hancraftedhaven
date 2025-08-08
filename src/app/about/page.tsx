@@ -138,7 +138,7 @@ export default function AboutPage() {
         {/* Community Section */}
         <div className="bg-[#f5f1eb] p-8 rounded-lg mb-12 text-center">
           <h2 className="text-3xl font-bold text-[#8d6748] mb-4">
-            "Join The Community Of Famous Collectors and Artisans!"
+            &ldquo;Join The Community Of Famous Collectors and Artisans!&rdquo;
           </h2>
           <p className="text-gray-700 leading-relaxed">
             Here, you can explore a diverse collection of unique, handcrafted creations, each telling its own story and reflecting the skill and passion of its maker. Our platform empowers independent artists by providing them with a space to showcase their work, while helping buyers discover meaningful products that support ethical craftsmanship and sustainable practices. Join us to celebrate creativity, support small businesses, and find one-of-a-kind treasures that enrich your life and community.
@@ -293,7 +293,7 @@ export default function AboutPage() {
             </div>
             <div className="bg-[#f5f1eb] p-6 rounded-lg">
               <h4 className="text-xl font-bold text-[#8d6748] mb-3">Curated Selection</h4>
-              <p className="text-gray-700">Discover exclusive, one-of-a-kind pieces you won't find anywhere else.</p>
+              <p className="text-gray-700">Discover exclusive, one-of-a-kind pieces you won&apos;t find anywhere else.</p>
             </div>
             <div className="bg-[#f5f1eb] p-6 rounded-lg">
               <h4 className="text-xl font-bold text-[#8d6748] mb-3">Community Focused</h4>
@@ -311,18 +311,18 @@ export default function AboutPage() {
           <h3 className="text-2xl font-bold mb-4">Ready to Start Your Journey?</h3>
           <p className="mb-6">Explore our marketplace and discover the perfect handcrafted treasures waiting for you.</p>
           <div className="space-x-4">
-            <a 
+            <Link 
               href="/listings" 
               className="bg-white text-[#8d6748] px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors inline-block"
             >
               Browse Products
-            </a>
-            <a 
+            </Link>
+            <Link 
               href="/sellers" 
               className="border-2 border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-[#8d6748] transition-colors inline-block"
             >
               Meet Our Artists
-            </a>
+            </Link>
           </div>
         </div>
       </main>

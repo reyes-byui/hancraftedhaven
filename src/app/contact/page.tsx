@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import MainHeader from "../../components/MainHeader";
 import Footer from "../../components/Footer";
 import { useState } from 'react';
@@ -70,7 +71,7 @@ export default function ContactPage() {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-[#8d6748] mb-6">Contact Us</h1>
           <p className="text-lg text-gray-700 leading-relaxed">
-            We'd love to hear from you! Send us a message and we'll respond as soon as possible.
+            We&apos;d love to hear from you! Send us a message and we&apos;ll respond as soon as possible.
           </p>
         </div>
 
@@ -82,7 +83,7 @@ export default function ContactPage() {
             {submitStatus === 'success' && (
               <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6">
                 <p className="font-medium">Message sent successfully!</p>
-                <p className="text-sm">We'll get back to you within 24 hours.</p>
+                <p className="text-sm">We&apos;ll get back to you within 24 hours.</p>
               </div>
             )}
 
@@ -196,7 +197,7 @@ export default function ContactPage() {
             <div>
               <h2 className="text-2xl font-bold text-[#8d6748] mb-6">Get in Touch</h2>
               <p className="text-gray-700 mb-6">
-                Have questions about our marketplace, need help with your account, or want to learn more about selling on our platform? We're here to help!
+                Have questions about our marketplace, need help with your account, or want to learn more about selling on our platform? We&apos;re here to help!
               </p>
             </div>
 
@@ -263,10 +264,10 @@ export default function ContactPage() {
             <div className="bg-[#f5f1eb] p-6 rounded-lg">
               <h3 className="font-semibold text-[#8d6748] mb-3">Quick Links</h3>
               <div className="space-y-2 text-sm">
-                <a href="/about" className="block text-[#8d6748] hover:underline">About Us</a>
-                <a href="/sellers" className="block text-[#8d6748] hover:underline">Become a Seller</a>
-                <a href="/listings" className="block text-[#8d6748] hover:underline">Browse Products</a>
-                <a href="/account/customer" className="block text-[#8d6748] hover:underline">My Account</a>
+                <Link href="/about" className="block text-[#8d6748] hover:underline">About Us</Link>
+                <Link href="/sellers" className="block text-[#8d6748] hover:underline">Become a Seller</Link>
+                <Link href="/listings" className="block text-[#8d6748] hover:underline">Browse Products</Link>
+                <Link href="/account/customer" className="block text-[#8d6748] hover:underline">My Account</Link>
               </div>
             </div>
           </div>
