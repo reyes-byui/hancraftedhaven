@@ -212,7 +212,7 @@ export default function Home() {
                       className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500" 
                     />
                     <div className="absolute top-3 left-3 bg-[#e07a5f] text-white text-xs px-2 py-1 rounded-full font-bold">
-                      🔥 #{index + 1}
+                      #{index + 1}
                     </div>
                     <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   </div>
