@@ -9,7 +9,7 @@ import Footer from '@/components/Footer';
 import ProductImageGallery from '@/components/ProductImageGallery';
 import ProductInquiryModal from '@/components/ProductInquiryModal';
 import MessageSellerButton from '@/components/MessageSellerButton';
-import ProductReviews from '@/components/ProductReviews';
+// import ProductReviews from '@/components/ProductReviews'; // Temporarily disabled
 import { getCurrentUserWithProfile, getSellerProfile, addToCart, getProductWithImages, type SellerProfile, type ProductWithImages } from '@/lib/supabase';
 
 export default function ProductDetailPage() {
@@ -295,12 +295,12 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
-        {/* Product Reviews Section */}
-        {product && (
+        {/* Product Reviews Section - Temporarily disabled */}
+        {/* {product && (
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <ProductReviews productId={product.id} />
           </div>
-        )}
+        )} */}
 
         {/* Product Inquiry Modal */}
         {showInquiryModal && currentUser && seller && product && (
