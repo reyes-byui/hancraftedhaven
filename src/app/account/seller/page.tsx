@@ -258,7 +258,7 @@ export default function SellerDashboard() {
           {/* Seller Profile Information Display */}
           <div className="p-8 border-b border-gray-200">
             <div className="bg-[#f8f5f2] border border-gray-200 rounded-lg p-6">
-              <div className="flex items-start gap-6 mb-4">
+              <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6 mb-4">
                 {/* Profile Image */}
                 <div className="flex-shrink-0">
                   <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
@@ -282,9 +282,9 @@ export default function SellerDashboard() {
                 </div>
                 
                 {/* Profile Info */}
-                <div className="flex-grow">
+                <div className="flex-grow text-center md:text-left">
                   <h2 className="text-xl font-semibold text-[#8d6748] mb-4">Your Seller Profile Information</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-left">
                     <div>
                       <span className="font-medium text-[#4d5c3a]">Name:</span>
                       <span className="ml-2 text-gray-700">
