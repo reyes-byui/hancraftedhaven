@@ -1,0 +1,14 @@
+# Ignore temporary files created by scripts
+*.tmp
+*.log
+*.backup
+*_backup.*
+
+# Ignore any generated output files
+output/
+temp/
+backup/
+
+# Ignore any local configuration files
+local-config.js
+.env.local.scripts

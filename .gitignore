@@ -40,4 +40,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Keep docs private (contains database schemas and business logic)
 docs/
+
+# Ignore script outputs and temporary files (but keep the scripts themselves)
+scripts/**/*.log
+scripts/**/*.tmp
+scripts/**/*.backup
+scripts/**/output/
+scripts/**/temp/
